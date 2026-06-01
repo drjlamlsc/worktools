@@ -71,7 +71,7 @@ main {
   width: 100%;
   max-width: 760px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
 }
 
@@ -107,6 +107,7 @@ main {
 }
 .icon-formatter { background: rgba(126,184,247,0.10); }
 .icon-recorder  { background: rgba(125,212,160,0.10); }
+.icon-rxcalc    { background: rgba(147,130,247,0.12); }
 
 .card h2 {
   font-size: 16px;
@@ -171,6 +172,13 @@ footer {
     <div class="card-icon icon-recorder">🗂</div>
     <h2>Session Recorder</h2>
     <p>Drop a patient list screenshot, tag cases by age, diagnosis and follow-up interval, track session financials, then export to CSV.</p>
+    <div class="card-foot">OPEN TOOL <span class="arrow">→</span></div>
+  </a>
+
+  <a class="card" href="tools/rx-calc.html">
+    <div class="card-icon icon-rxcalc">💊</div>
+    <h2>Prescription Calculator</h2>
+    <p>Parse free-text prescriptions into a dispensation list — tablet counts, optimal strength combinations, brand/generic forcing, and cost totals.</p>
     <div class="card-foot">OPEN TOOL <span class="arrow">→</span></div>
   </a>
 </main>

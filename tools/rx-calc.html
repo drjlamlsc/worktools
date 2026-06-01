@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prescription Calculator v7</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { colors: { primary: '#5D5CDE' } } }
+        }
+    </script>
+    <style>
+        .autocomplete-dropdown { max-height: 200px; overflow-y: auto; }
+        .autocomplete-item:hover { background-color: rgba(93,92,222,0.1); }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen">
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-primary">Prescription Calculator v7</h1>
+        <button id="manageCustomDrugs"
+                class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm">
+            Custom Drugs
+        </button>
+    </div>
+
+    <!-- Input card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+        <div class="mb-4 relative">
+            <label for="prescription" class="block text-sm font-medium mb-2">Prescription</label>
+            <textarea id="prescription" rows="4"
+                      class="w-full px-3 py-2 text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                      placeholder="Type prescription or use comma/newline separation…"></textarea>
+            <div id="autocompleteDropdown"
+                 class="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg autocomplete-dropdown hidden"></div>
+        </div>
+
+        <div class="flex flex-wrap gap-4 mb-4">
+            <div class="w-full sm:w-auto">
+                <label for="duration" class="block text-sm font-medium mb-2">Duration</label>
+                <input type="number" id="duration" min="1" value="4"
+                       class="w-full sm:w-24 px-3 py-2 text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
+            </div>
+            <div class="w-full sm:w-auto">
+                <label for="unit" class="block text-sm font-medium mb-2">Unit</label>
+                <select id="unit"
+                        class="w-full sm:w-32 px-3 py-2 text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
+                    <option value="weeks" selected>Weeks</option>
+                    <option value="days">Days</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex gap-3">
+            <button id="calculate"
+                    class="px-4 py-2 bg-primary text-white rounded-md hover:bg-opacity-90 transition-colors">
+                Calculate
+            </button>
+            <button id="clearBtn"
+                    class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">
+                Clear / Reset
+            </button>
+        </div>
+    </div>
+
+    <!-- Supported formats (collapsible) -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-3 mb-6 text-xs">
+        <button id="toggleFormats"
+                class="w-full flex justify-between items-center text-left font-medium py-1 focus:outline-none">
+            <span class="text-sm">Supported Input Formats</span>
+            <svg id="toggleIcon" class="h-4 w-4 transform transition-transform duration-200"
+                 xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd"
+                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                      clip-rule="evenodd"/>
+            </svg>
+        </button>
+        <div id="inputFormats" class="hidden mt-2 space-y-2 text-xs text-gray-600 dark:text-gray-400">
+            <div>
+                <p class="font-medium">1. Full prescription with overall duration</p>
+                <p><i>Example:</i> "Brintellix 20mg daily, Quetiapine 50mg noct, Xanax 0.25mg BD PRN"</p>
+            </div>
+            <div>
+                <p class="font-medium">2. Prescription with specific durations for some medications</p>
+                <p><i>Example:</i> "Brintellix 20mg daily, Xanax 0.25mg BD PRN x 1 week"</p>
+            </div>
+            <div>
+                <p class="font-medium">3. Specify dose strength using [strength]</p>
+                <p><i>Example:</i> "Lamotrigine 100mg Nocte [25mg]" (dispense 25mg × 4)</p>
+            </div>
+            <div>
+                <p class="font-medium">4. Direct dispensation format</p>
+                <p><i>Example:</i> "Latuda 20mg x 14" (dispense 14 tabs)</p>
+            </div>
+            <div>
+                <p class="font-medium">5. Medications that can't be split (prefix with *)</p>
+                <p><i>Example:</i> "*Fluoxetine 30mg daily" (finds optimal combination of available strengths)</p>
+            </div>
+            <div>
+                <p class="font-medium">6. Force brand or generic (prefix with $ or #)</p>
+                <p><i>Example:</i> "$pregabalin 75mg TDS" (forces brand LYRICA), "#lyrica 75mg TDS" (forces generic)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6 hidden">
+        <h2 class="text-xl font-bold mb-4">Dispensation Details</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
+                <thead>
+                    <tr>
+                        <th class="px-4 py-3 text-left text-sm font-medium">Drug Item</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium">Dose Strength</th>
+                        <th class="px-4 py-3 text-right text-sm font-medium">Number of Tabs</th>
+                        <th class="px-4 py-3 text-right text-sm font-medium">Cost+5% (C)</th>
+                        <th class="px-4 py-3 text-right text-sm font-medium">Price (C)</th>
+                    </tr>
+                </thead>
+                <tbody id="results-body" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody>
+                <tfoot>
+                    <tr class="font-bold border-t-2 border-gray-300 dark:border-gray-500">
+                        <td class="px-4 py-3 text-left" colspan="3">Total</td>
+                        <td class="px-4 py-3 text-right" id="total-cost">—</td>
+                        <td class="px-4 py-3 text-right" id="total-price">—</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Warnings -->
+    <div id="warnings"
+         class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 mb-6 hidden">
+        <h2 class="text-xl font-bold mb-2 text-yellow-700 dark:text-yellow-400">Warnings</h2>
+        <ul id="warning-list" class="list-disc pl-5 text-yellow-600 dark:text-yellow-400"></ul>
+    </div>
+
+    <!-- Errors -->
+    <div id="errors"
+         class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 mb-6 hidden">
+        <h2 class="text-xl font-bold mb-2 text-red-700 dark:text-red-400">Errors</h2>
+        <ul id="error-list" class="list-disc pl-5 text-red-600 dark:text-red-400"></ul>
+    </div>
+
+</div>
+
+<!-- Custom Drugs Modal -->
+<div id="customDrugsModal"
+     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden"
+     style="backdrop-filter:blur(2px)">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Manage Custom Drugs</h2>
+                <button id="closeCustomDrugsModal"
+                        class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Add form -->
+            <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-6">
+                <h3 class="text-lg font-semibold mb-3">Add New Drug</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Drug Name</label>
+                        <input type="text" id="customDrugName"
+                               class="w-full px-3 py-2 text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-600 border-gray-300 dark:border-gray-500"
+                               placeholder="e.g. Quetiapine 50mg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Cost per Tab</label>
+                        <input type="number" id="customDrugCost" step="0.01"
+                               class="w-full px-3 py-2 text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-600 border-gray-300 dark:border-gray-500"
+                               placeholder="e.g. 5.0">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Cost+5% per Tab</label>
+                        <input type="number" id="customDrugCostPlus5" step="0.01"
+                               class="w-full px-3 py-2 text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-600 border-gray-300 dark:border-gray-500"
+                               placeholder="auto-filled">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Price per Tab</label>
+                        <input type="number" id="customDrugPrice" step="0.01"
+                               class="w-full px-3 py-2 text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-600 border-gray-300 dark:border-gray-500"
+                               placeholder="e.g. 15.0">
+                    </div>
+                </div>
+                <button id="addCustomDrug"
+                        class="px-4 py-2 bg-primary text-white rounded-md hover:bg-opacity-90 transition-colors">
+                    Add Drug
+                </button>
+            </div>
+
+            <!-- List -->
+            <div>
+                <h3 class="text-lg font-semibold mb-3">Custom Drugs List</h3>
+                <div id="customDrugsList" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   EMBEDDED DRUG DATABASE  (ported from drugs.csv — standard formulary)
+═══════════════════════════════════════════════════════════════════════════ */
+const DRUGS_CSV = `drug,cost,cost_plus5,price
+Agomelatine 25mg (VALDOXAN),19.88,20.87,38.0
+Alprazolam 0.25mg - zolaram,0.79,0.83,8.0
+Alprazolam 0.25mg (XANAX),3.3,3.46,12.0
+Amisulpride 100mg (SOLIAN),8.59,9.02,15.0
+Amitriptyline 10mg,0.79,0.83,8.0
+Aripiprazole 2mg (ABILIFY),8.27,8.69,32.0
+Aripiprazole 5mg - aryzalera,2.8,2.94,30.0
+Aripiprazole 5mg (ABILIFY),20.64,21.67,42.0
+Aripiprazole 10mg (ABILIFY),20.59,21.61,50.0
+Artane 2mg,1.55,1.63,6.0
+Atomoxetine 18mg - apo,14.17,14.88,28.0
+Atomoxetine 25mg - apo,14.03,14.73,32.0
+Atomoxetine 40mg - apo,15.5,16.28,38.0
+Brexpiprazole 0.5mg (REXULTI),20.23,21.24,43.0
+Brexpiprazole 2mg (REXULTI),43.59,45.77,82.0
+Bromazepam 1.5mg (AKAMON),0.89,0.93,9.0
+Bromazepam 1.5mg (LEXOTAN),1.03,1.08,10.0
+Bromazepam 3mg (LEXOTAN),1.54,1.62,16.0
+Bupropion 150mg (WELLBUTRIN XL),4.95,5.2,16.0
+Bupropion 300mg (WELLBUTRIN XL),9.88,10.38,30.0
+Citalopram 20mg,1.39,1.46,15.0
+Clonazepam 0.5mg - pms,0.68,0.71,8.0
+Clonazepam 2mg (RIVOTRIL),2.94,3.09,18.0
+Deanxit,2.42,2.54,10.0
+Desvenlafaxine 25mg (PRISTIQ),9.64,10.12,23.0
+Desvenlafaxine 50mg (PRISTIQ),14.72,15.46,30.0
+Diazepam 2mg - vickmans,0.68,0.71,8.0
+Diazepam 5mg - vickmans,0.78,0.81,9.0
+Domperidone 10mg,0.14,0.15,5.0
+Donepezil 10mg - alzedon,3.96,4.15,20.0
+Duloxetine 30mg - pms,1.8,1.89,9.0
+Duloxetine 30mg - teva,1.8,1.89,10.0
+Duloxetine 30mg (CYMBALTA),1.8,1.89,30.0
+Duloxetine 60mg - pms,2.4,2.52,16.0
+Duloxetine 60mg (CYMBALTA),2.4,2.52,45.0
+Epilim CR 200mg,2.7,2.83,8.0
+Epilim CR 500mg,6.98,7.33,13.0
+Escitalopram 10mg - apo,0.8,0.84,14.0
+Escitalopram 10mg (LEXAPRO),10.27,10.78,30.0
+Exelon Patch 9.5mg,19.29,20.25,50.0
+Famotidine 20mg,0.2,0.2,6.0
+Flunitrazepam 1mg (ROHYPNOL),4.23,4.44,14.0
+Flunitrazepam 2mg - flunita,6.46,6.78,20.0
+Fluoxetine 10mg - pms,0.56,0.59,8.0
+Fluoxetine 20mg - pms,0.57,0.6,10.0
+G-Niib Immunity Pro (28 sac/box),361.08,379.13,480.0
+Gaviscon 500mg,2.45,2.57,12.0
+Lamotrigine 100mg - apo,4.65,4.88,15.0
+Lamotrigine 25mg - apo,2.0,2.1,7.0
+Latuda 20mg,15.31,16.08,36.0
+Latuda 40mg,20.46,21.48,48.0
+Latuda 80mg,35.97,37.77,64.0
+Lemborexant 5mg (DAYVIGO),9.55,10.03,20.0
+Lisdexamfetamine 20mg (VYVANSE),14.05,14.76,32.0
+Lisdexamfetamine 30mg (VYVANSE),23.05,24.2,45.0
+Lithium Carbonate 150mg,1.32,1.39,8.0
+Lorazepam 1mg - lorans,0.87,0.92,10.0
+Lorazepam 2mg - lorans,1.07,1.13,15.0
+Lorazepam 2mg - pms,1.07,1.13,13.0
+Melatonin 10mg,1.04,1.09,10.0
+Melatonin 3mg,0.53,0.55,5.0
+Melatonin 5mg,1.4,1.46,10.0
+Memantine 10mg - pms/ teva,2.5,2.62,12.0
+Methylphenidate 10mg (RITALIN),3.81,4.0,15.0
+Methylphenidate LA 10mg (RITALIN LA),10.78,11.32,25.0
+Methylphenidate LA 20mg (RITALIN LA),12.51,13.13,35.0
+Methylphenidate ER 18mg (CONCERTA),23.61,24.79,40.0
+Methylphenidate ER 27mg (CONCERTA),21.88,22.97,45.0
+Methylphenidate ER 36mg (CONCERTA),25.79,27.08,55.0
+Methylphenidate PR 18mg - sandoz,7.07,7.42,28.0
+Methylphenidate PR 27mg - sandoz/ teva,7.05,7.4,32.0
+Methylphenidate PR 36mg - sandoz,7.0,7.35,35.0
+Midazolam 15mg (DORMICUM),8.0,8.4,25.0
+Mirtazapine 15mg - apo/ pms,1.4,1.47,8.0
+Mirtazapine 30mg - pms,2.73,2.86,14.0
+Mirtazapine 30mg (REMERON SOLTAB),7.6,7.98,24.0
+Mirtazapine OD 15mg - sandoz,1.69,1.78,8.0
+Mirtazapine OD 30mg - sandoz,2.73,2.86,15.0
+Nortrilen 10mg (Nortriptyline),1.38,1.45,10.0
+Nortrilen 25mg (Nortriptyline),1.78,1.87,15.0
+Olanzapine 2.5mg - apo,6.25,6.56,18.0
+Olanzapine 5mg - apo/ onzapine,10.12,10.63,30.0
+Olanzapine OD 5mg - teva,5.34,5.61,18.0
+Paroxetine CR 12.5mg (SEROXAT CR),2.4,2.52,12.0
+Paroxetine CR 25mg (SEROXAT CR),4.75,4.99,25.0
+Pregabalin 150mg - pms,2.88,3.02,20.0
+Pregabalin 25mg - pms,1.6,1.68,12.0
+Pregabalin 25mg (LYRICA),1.6,1.68,25.0
+Pregabalin 75mg (LYRICA),6.23,6.55,18.0
+Pregabalin 50mg - pms,1.6,1.68,14.0
+Pregabalin 75mg - pms,1.61,1.69,16.0
+Promethazine 25mg,0.45,0.47,6.0
+Propranolol 10mg,0.53,0.55,5.0
+Quesero 200mg (Quetiapine ER),3.58,3.76,20.0
+Quetiapine 100mg - pms/ setinin,4.89,5.13,20.0
+Quetiapine 200mg - pms/,6.07,6.37,25.0
+Quetiapine 25mg - pms/ setinin,2.14,2.25,12.0
+Quetiapine 25mg (Seroquel),8.56,8.98,20.0
+Quetiapine XR 200mg (Seroquel XR),15.82,16.61,40.0
+Quetiapine XR 50mg (Seroquel XR),5.48,5.76,20.0
+Risperidone 0.25mg - pms,0.71,0.74,8.0
+Risperidone 0.5mg - pms,1.31,1.37,10.0
+Risperidone 1mg - pms,1.0,1.05,10.0
+Sertraline 50mg - apo,1.3,1.37,15.0
+Sertraline 50mg (ZOLOFT),6.4,6.72,28.0
+Sulpiride 50mg - supide,0.39,0.4,8.0
+Trazodone 150mg (TRITTICO PR),4.2,4.41,16.0
+Trazodone 50mg (TRITTICO),1.36,1.43,8.0
+Trifluoperazine 2mg - Modalina,2.57,2.7,8.0
+Vayacog 100mg,12.31,12.92,16.0
+Venlafaxine 150mg (EFEXOR XR),10.76,11.3,45.0
+Venlafaxine 37.5mg (EFEXOR XR),4.64,4.87,20.0
+Venlafaxine 75mg (EFEXOR XR),6.26,6.57,30.0
+Venlafaxine 75mg - venlor ER,1.37,1.44,20.0
+Vortioxetine 5mg (BRINTELLIX),13.31,13.98,25.0
+Vortioxetine 10mg (BRINTELLIX),17.72,18.61,35.0
+Vortioxetine 20mg (BRINTELLIX),25.45,26.72,55.0
+Zolpidem 10mg - sandoz,0.97,1.02,10.0
+Zolpidem 10mg (STILNOX),4.89,5.13,13.0
+Zolpidem CR 12.5mg (STILNOX CR),7.83,8.22,15.0
+Zopiclone 7.5mg - pms,0.57,0.6,8.0`;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ENGINE  (faithful 1:1 port of app.py)
+═══════════════════════════════════════════════════════════════════════════ */
+
+const LASA_PAIRS = [
+    ["citalopram", "escitalopram"],
+    ["hydroxyzine", "hydralazine"],
+    ["duloxetine", "fluoxetine"],
+    ["alprazolam", "lorazepam"],
+    ["clonazepam", "lorazepam"],
+    ["methylphenidate", "metoprolol"],
+    ["sertraline", "cetirizine"],
+    ["olanzapine", "quetiapine"],
+    ["tramadol", "trazodone"],
+];
+
+const BRAND_TO_GENERIC = {
+    "brintellix": "vortioxetine", "xanax": "alprazolam", "lexapro": "escitalopram",
+    "cymbalta": "duloxetine", "rexulti": "brexpiprazole", "abilify": "aripiprazole",
+    "valdoxan": "agomelatine", "solian": "amisulpride", "wellbutrin": "bupropion",
+    "rivotril": "clonazepam", "pristiq": "desvenlafaxine", "vyvanse": "lisdexamfetamine",
+    "ritalin": "methylphenidate", "concerta": "methylphenidate er", "remeron": "mirtazapine",
+    "seroquel": "quetiapine", "zoloft": "sertraline", "stilnox": "zolpidem",
+    "efexor": "venlafaxine", "lyrica": "pregabalin", "lexotan": "bromazepam",
+    "dayvigo": "lemborexant", "latuda": "lurasidone", "seroxat": "paroxetine",
+};
+
+// round to 2 dp matching Python round() for these (exact-2dp) money values
+const round2 = x => Number(x.toFixed(2));
+
+function parseDrugName(name) {
+    let generic = name, brand = null, strength = "", sv = 0.0, su = "", formulation = "";
+    let m = name.match(/\b(\d+(?:\.\d+)?)\s*(mg|mcg|g|ml)\b/i);
+    if (m) {
+        strength = m[0].replace(/ /g, ""); sv = parseFloat(m[1]); su = m[2].toLowerCase();
+        generic = generic.replace(m[0], "").trim();
+    }
+    let m2 = name.match(/\(([^)]+)\)/);
+    if (m2) { brand = m2[1]; generic = generic.replace(/\([^)]+\)/, "").trim(); }
+    let m3 = generic.match(/\s-\s(.+)$/);
+    if (m3) { formulation = m3[1]; generic = generic.replace(/\s-\s.+$/, "").trim(); }
+    let m4 = generic.match(/\b(CR|XR|PR|ER|LA|OD)\b/);
+    if (m4 && !formulation) formulation = m4[1];
+    generic = generic.replace(/\s+/g, " ").trim();
+    return { generic, brand, strength, strength_val: sv, strength_unit: su, formulation };
+}
+
+function baseName(name) {
+    return name.replace(/\b(cr|xr|pr|er|la|od)\b/gi, "").trim();
+}
+
+function parseStrengthVal(s) {
+    let m = String(s).match(/(\d+(?:\.\d+)?)/);
+    return m ? parseFloat(m[1]) : 0.0;
+}
+
+function parseStrengthUnit(s) {
+    let m = String(s).match(/(mg|mcg|g|ml)/i);
+    return m ? m[1].toLowerCase() : "mg";
+}
+
+function makeEntry(full_name, cost, cost_plus5, price) {
+    const info = parseDrugName(full_name);
+    return {
+        full_name, cost, cost_plus5, price,
+        generic: info.generic, brand: info.brand, strength: info.strength,
+        strength_val: info.strength_val, strength_unit: info.strength_unit,
+        formulation: info.formulation, is_brand: info.brand !== null,
+    };
+}
+
+function parseCsv(text) {
+    const lines = text.split("\n").map(l => l.replace(/\r$/, "")).filter(l => l.trim());
+    const out = [];
+    for (let i = 1; i < lines.length; i++) {
+        // split from the right: drug may notionally contain commas, last 3 are numbers
+        const parts = lines[i].split(",");
+        if (parts.length < 4) continue;
+        const price = parts.pop(), cp5 = parts.pop(), cost = parts.pop();
+        const drug = parts.join(",").trim();
+        const c = parseFloat(cost), p5 = parseFloat(cp5), pr = parseFloat(price);
+        if (isNaN(c) || isNaN(p5) || isNaN(pr)) continue;
+        out.push(makeEntry(drug, c, p5, pr));
+    }
+    return out;
+}
+
+// ── Database ──────────────────────────────────────────────────────────────
+const CUSTOM_KEY = "rxcalc_custom_drugs";
+const DB = {
+    standard: [], custom: [], all: [], byGeneric: new Map(),
+    load() {
+        this.standard = parseCsv(DRUGS_CSV);
+        this.loadCustom();
+        this.rebuild();
+    },
+    loadCustom() {
+        this.custom = [];
+        try {
+            const raw = localStorage.getItem(CUSTOM_KEY);
+            if (raw) {
+                for (const d of JSON.parse(raw)) {
+                    this.custom.push(makeEntry(String(d.drug).trim(),
+                        parseFloat(d.cost), parseFloat(d.cost_plus5), parseFloat(d.price)));
+                }
+            }
+        } catch (e) { this.custom = []; }
+    },
+    saveCustom() {
+        const data = this.custom.map(d => ({
+            drug: d.full_name, cost: d.cost, cost_plus5: d.cost_plus5, price: d.price
+        }));
+        localStorage.setItem(CUSTOM_KEY, JSON.stringify(data));
+    },
+    rebuild() {
+        this.all = this.standard.concat(this.custom);
+        this.byGeneric = new Map();
+        for (const entry of this.all) {
+            const key = baseName(entry.generic.toLowerCase());
+            if (!this.byGeneric.has(key)) this.byGeneric.set(key, []);
+            this.byGeneric.get(key).push(entry);
+        }
+    },
+    addCustom(full_name, cost, cost_plus5, price) {
+        this.custom.push(makeEntry(full_name, cost, cost_plus5, price));
+        this.saveCustom(); this.rebuild();
+    },
+    deleteCustom(index) {
+        this.custom.splice(index, 1);
+        this.saveCustom(); this.rebuild();
+    },
+    autocomplete(term, limit = 10) {
+        term = term.toLowerCase();
+        const res = [];
+        for (const e of this.all) {
+            if (e.full_name.toLowerCase().includes(term)) {
+                res.push(e.full_name);
+                if (res.length >= limit) break;
+            }
+        }
+        return res;
+    },
+    firstValueByKeyPrefix(prefix) {
+        for (const [k, v] of this.byGeneric) if (k.startsWith(prefix)) return v;
+        return [];
+    },
+    find(drug_name, strength, force_brand = false, force_generic = false) {
+        const name_lower = drug_name.toLowerCase();
+        const resolved_generic = BRAND_TO_GENERIC[name_lower];
+        let candidates = [];
+
+        if (resolved_generic) {
+            const cands = this.byGeneric.get(baseName(resolved_generic)) || [];
+            if (cands.length) {
+                if (force_generic) candidates = cands.filter(c => !c.is_brand);
+                else { const b = cands.filter(c => c.is_brand); candidates = b.length ? b : cands; }
+            }
+        }
+        if (!candidates.length) {
+            candidates = this.byGeneric.get(baseName(name_lower)) || [];
+        }
+        if (!candidates.length) {
+            for (const entry of this.all)
+                if (entry.full_name.toLowerCase().includes(name_lower)) candidates.push(entry);
+        }
+        if (!candidates.length) {
+            const baseParts = baseName(name_lower).split(/\s+/).filter(Boolean);
+            const first_word = baseParts.length ? baseParts[0] : name_lower;
+            candidates = this.firstValueByKeyPrefix(first_word);
+        }
+        if (!candidates.length) {
+            for (const [k, v] of this.byGeneric) {
+                if (k.slice(0, 6) === name_lower.slice(0, 6)) { candidates = v; break; }
+            }
+        }
+        if (!candidates.length)
+            return [null, null, `Drug not found: ${drug_name}. Check spelling.`];
+
+        if (force_brand) {
+            const bc = candidates.filter(c => c.is_brand);
+            if (!bc.length) return [null, null, `No branded version available for ${drug_name}`];
+            candidates = bc;
+        } else if (force_generic) {
+            const gc = candidates.filter(c => !c.is_brand);
+            if (!gc.length) return [null, null, `No generic version available for ${drug_name}`];
+            candidates = gc;
+        } else if (!resolved_generic) {
+            const gc = candidates.filter(c => !c.is_brand);
+            if (gc.length) candidates = gc;
+        }
+
+        if (name_lower.includes("escitalopram") && candidates.length &&
+            !candidates[0].generic.toLowerCase().includes("escitalopram")) {
+            return [null, null, "Safety alert: escitalopram was requested but matched " +
+                "to citalopram. These are different medications."];
+        }
+
+        const warning = lasaWarning(name_lower, candidates.length ? candidates[0].generic.toLowerCase() : "");
+        const target_val = parseStrengthVal(strength);
+        const wanted = strength.toLowerCase().replace(/ /g, "");
+        let best = candidates.find(c => c.strength.toLowerCase().replace(/ /g, "") === wanted) || null;
+        if (best === null) best = minBy(candidates, c => Math.abs(c.strength_val - target_val));
+        if (best === null) return [null, null, `No matching strength for ${drug_name} ${strength}`];
+        return [best, warning, null];
+    },
+    findCombination(drug_name, target_dose, frequency, duration_days, force_brand = false, force_generic = false) {
+        const name_lower = drug_name.toLowerCase();
+        const resolved = BRAND_TO_GENERIC[name_lower] || name_lower;
+        const base = baseName(resolved);
+        let pool = this.byGeneric.get(base) || [];
+        if (!pool.length) {
+            const baseParts = base.split(/\s+/).filter(Boolean);
+            const first_word = baseParts.length ? baseParts[0] : base;
+            pool = this.firstValueByKeyPrefix(first_word);
+        }
+        if (!pool.length)
+            pool = this.all.filter(e => e.full_name.toLowerCase().includes(name_lower));
+        if (!pool.length) return [null, `Drug not found for combination: ${drug_name}`];
+
+        const tv = parseStrengthVal(target_dose);
+        const tu = parseStrengthUnit(target_dose);
+        pool = pool.filter(e => e.strength_unit === tu);
+        if (force_brand) pool = pool.filter(e => e.is_brand);
+        else if (force_generic) pool = pool.filter(e => !e.is_brand);
+        if (!pool.length) return [null, `No strengths available for ${drug_name} (${tu})`];
+
+        const families = new Map();
+        for (const e of pool) {
+            const k = e.generic.toLowerCase();
+            if (!families.has(k)) families.set(k, []);
+            families.get(k).push(e);
+        }
+
+        let best_combo = null, best_cost = Infinity;
+        for (const fam of families.values()) {
+            fam.sort((a, b) => b.strength_val - a.strength_val);
+            const combo = greedyCombination(fam, tv);
+            if (combo !== null) {
+                const cost = combo.reduce((s, [e, n]) => s + e.cost_plus5 * n, 0);
+                if (cost < best_cost) { best_cost = cost; best_combo = combo; }
+            }
+        }
+        if (best_combo === null) return [null, `No valid combination for ${drug_name} ${target_dose}`];
+
+        const items = [];
+        for (const [entry, n] of best_combo) {
+            const total = n * frequency * duration_days;
+            items.push({
+                drug_item: entry.full_name, strength: entry.strength, tablets: total,
+                cost_plus5: entry.cost_plus5, price: entry.price,
+                total_cost_plus5: round2(entry.cost_plus5 * total),
+                total_price: round2(entry.price * total),
+            });
+        }
+        return [items, null];
+    },
+};
+
+function minBy(arr, f) {
+    let best = null, bv = Infinity;
+    for (const x of arr) { const v = f(x); if (v < bv) { bv = v; best = x; } }
+    return best;
+}
+
+function greedyCombination(entriesDesc, target) {
+    let remaining = target; const result = [];
+    for (const e of entriesDesc) {
+        if (e.strength_val <= 0) continue;
+        const n = Math.trunc(remaining / e.strength_val);
+        if (n > 0) { result.push([e, n]); remaining -= n * e.strength_val; }
+        if (Math.abs(remaining) < 0.001) return result;
+    }
+    return Math.abs(remaining) > 0.001 ? null : result;
+}
+
+function lasaWarning(input_name, matched_generic) {
+    if (input_name === matched_generic) return null;
+    for (const [a, b] of LASA_PAIRS) {
+        if (matched_generic === a && input_name.startsWith(b.slice(0, 4)))
+            return `Input "${input_name}" matched to "${matched_generic}" — verify LASA pair.`;
+        if (matched_generic === b && input_name.startsWith(a.slice(0, 4)))
+            return `Input "${input_name}" matched to "${matched_generic}" — verify LASA pair.`;
+    }
+    return null;
+}
+
+// ── Prescription parser ───────────────────────────────────────────────────
+const FREQ_MAP = [
+    ["daily", 1], ["od", 1], ["once", 1], ["nocte", 1], ["noct", 1], ["om", 1], ["qd", 1], ["on", 1],
+    ["bd", 2], ["bid", 2], ["twice", 2], ["q12h", 2],
+    ["tds", 3], ["tid", 3], ["thrice", 3], ["q8h", 3],
+    ["qid", 4], ["qds", 4], ["q6h", 4],
+];
+
+function parseFrequency(text) {
+    text = text.toLowerCase();
+    for (const [k, v] of FREQ_MAP) if (text.includes(k)) return v;
+    return 1;
+}
+
+function parsePrescription(text, duration, unit) {
+    const duration_days = unit === "weeks" ? duration * 7 : duration;
+    const result = { dispensation: [], warnings: [], errors: [] };
+    for (const rawLine of text.split(/,|\n/)) {
+        const line = rawLine.trim();
+        if (!line) continue;
+        parseLine(line, duration_days, result);
+    }
+    result.total_cost_plus5 = round2(result.dispensation.reduce((s, i) => s + i.total_cost_plus5, 0));
+    result.total_price = round2(result.dispensation.reduce((s, i) => s + i.total_price, 0));
+    return result;
+}
+
+function parseLine(line, default_days, result) {
+    const force_brand = line.startsWith("$");
+    const force_generic = line.startsWith("#");
+    if (force_brand || force_generic) line = line.slice(1).trim();
+    const cannot_split = line.startsWith("*");
+    if (cannot_split) line = line.slice(1).trim();
+
+    // Direct: "Latuda 20mg x 14"
+    let m = line.match(/^(.+?)\s+x\s+(\d+)$/i);
+    if (m) {
+        const drug_text = m[1].trim(); const tab_count = parseInt(m[2]);
+        const sm = drug_text.match(/(\d+(?:\.\d+)?)\s*(mg|mcg|g|ml)/i);
+        if (!sm) { result.errors.push(`Cannot determine strength: ${line}`); return; }
+        const strength = sm[0].replace(/ /g, "");
+        const drug_name = drug_text.slice(0, sm.index).trim();
+        const [entry, warn, err] = DB.find(drug_name, strength, force_brand, force_generic);
+        if (err) { result.errors.push(err); return; }
+        if (warn) result.warnings.push(warn);
+        result.dispensation.push({
+            drug_item: entry.full_name, strength: entry.strength, tablets: tab_count,
+            cost_plus5: entry.cost_plus5, price: entry.price,
+            total_cost_plus5: round2(entry.cost_plus5 * tab_count),
+            total_price: round2(entry.price * tab_count),
+        });
+        return;
+    }
+
+    // Per-drug duration: "… x 2 weeks"
+    let med_days = default_days;
+    let m2 = line.match(/^(.+?)\s+x\s+(\d+)\s+(days?|weeks?)$/i);
+    if (m2) {
+        line = m2[1].trim(); const n = parseInt(m2[2]);
+        med_days = /week/i.test(m2[3]) ? n * 7 : n;
+    }
+
+    // Normal: "DrugName Xmg frequency [override]"
+    let m3 = line.match(/^([^\d]+?)(\d+(?:\.\d+)?)\s*(mg|mcg|g|ml)(.*)$/i);
+    if (!m3) {
+        result.errors.push(`Invalid format: "${line}". Expected e.g. "Brintellix 20mg daily"`);
+        return;
+    }
+
+    const drug_name = m3[1].trim();
+    const prescribed_dose = m3[2] + m3[3].toLowerCase();
+    const rest = m3[4].trim();
+
+    let override = null;
+    const bm = rest.match(/\[([^\]]+)\]/);
+    if (bm) override = bm[1].trim();
+
+    const frequency = parseFrequency(rest);
+
+    if (cannot_split) {
+        const [items, err] = DB.findCombination(drug_name, prescribed_dose, frequency, med_days, force_brand, force_generic);
+        if (err) result.errors.push(err);
+        else result.dispensation.push(...items);
+        return;
+    }
+
+    const [entry, warn, err] = DB.find(drug_name, override || prescribed_dose, force_brand, force_generic);
+    if (err) { result.errors.push(err); return; }
+    if (warn) result.warnings.push(warn);
+
+    const p_val = parseStrengthVal(prescribed_dose);
+    const e_val = override ? parseStrengthVal(override) : entry.strength_val;
+    const tabs = e_val ? Math.ceil((p_val / e_val) * frequency * med_days) : 0;
+
+    result.dispensation.push({
+        drug_item: entry.full_name, strength: entry.strength, tablets: tabs,
+        cost_plus5: entry.cost_plus5, price: entry.price,
+        total_cost_plus5: round2(entry.cost_plus5 * tabs),
+        total_price: round2(entry.price * tabs),
+    });
+}
+
+DB.load();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UI  (same behaviour as Flask edition; calls local engine instead of fetch)
+═══════════════════════════════════════════════════════════════════════════ */
+const prescriptionInput = document.getElementById('prescription');
+const autocompleteDropdown = document.getElementById('autocompleteDropdown');
+let acTimeout = null;
+
+prescriptionInput.addEventListener('input', () => {
+    clearTimeout(acTimeout);
+    acTimeout = setTimeout(() => {
+        const text = prescriptionInput.value;
+        const cursorPos = prescriptionInput.selectionStart;
+        const before = text.substring(0, cursorPos);
+        const lastSep = Math.max(before.lastIndexOf('\n'), before.lastIndexOf(','));
+        const segment = before.substring(lastSep + 1).trim().replace(/^[$#*]+/, '');
+
+        const words = segment.split(/\s+/);
+        let term = '';
+        for (const w of words) {
+            if (/^\d/.test(w)) break;
+            term += (term ? ' ' : '') + w;
+        }
+
+        if (term.length < 2) { autocompleteDropdown.classList.add('hidden'); return; }
+
+        const matches = DB.autocomplete(term);
+        if (!matches.length) { autocompleteDropdown.classList.add('hidden'); return; }
+
+        autocompleteDropdown.innerHTML = '';
+        matches.slice(0, 10).forEach(match => {
+            const div = document.createElement('div');
+            div.className = 'autocomplete-item px-4 py-2 cursor-pointer text-sm dark:text-gray-200';
+            div.textContent = match;
+            div.addEventListener('click', () => {
+                const beforeSel = text.substring(0, lastSep + 1);
+                const afterCur = text.substring(cursorPos);
+                prescriptionInput.value = beforeSel + (beforeSel.endsWith(',') || beforeSel.endsWith('\n') ? ' ' : '') + match + ' ' + afterCur;
+                const newPos = beforeSel.length + match.length + 1 + (beforeSel.endsWith(',') || beforeSel.endsWith('\n') ? 1 : 0);
+                prescriptionInput.setSelectionRange(newPos, newPos);
+                prescriptionInput.focus();
+                autocompleteDropdown.classList.add('hidden');
+            });
+            autocompleteDropdown.appendChild(div);
+        });
+        autocompleteDropdown.classList.remove('hidden');
+    }, 250);
+});
+
+document.addEventListener('click', e => {
+    if (!prescriptionInput.contains(e.target) && !autocompleteDropdown.contains(e.target))
+        autocompleteDropdown.classList.add('hidden');
+});
+
+document.getElementById('calculate').addEventListener('click', () => {
+    const text = prescriptionInput.value.trim();
+    const duration = parseInt(document.getElementById('duration').value) || 0;
+    const unit = document.getElementById('unit').value;
+
+    if (!text) { showError('Please enter a prescription.'); return; }
+    if (duration <= 0) { showError('Please enter a valid duration.'); return; }
+
+    const result = parsePrescription(text, duration, unit);
+    displayResults(result);
+});
+
+function displayResults(result) {
+    const body = document.getElementById('results-body');
+    const totalCost = document.getElementById('total-cost');
+    const totalPrice = document.getElementById('total-price');
+    const resultsDiv = document.getElementById('results');
+    const warningsDiv = document.getElementById('warnings');
+    const warningList = document.getElementById('warning-list');
+    const errorsDiv = document.getElementById('errors');
+    const errorList = document.getElementById('error-list');
+
+    body.innerHTML = ''; warningList.innerHTML = ''; errorList.innerHTML = '';
+
+    result.dispensation.forEach((item, i) => {
+        const tr = document.createElement('tr');
+        tr.className = i % 2 === 0 ? '' : 'bg-gray-50 dark:bg-gray-700/50';
+        tr.innerHTML = `
+            <td class="px-4 py-3 text-left">${item.drug_item}</td>
+            <td class="px-4 py-3 text-left">${item.strength}</td>
+            <td class="px-4 py-3 text-right">${item.tablets}</td>
+            <td class="px-4 py-3 text-right">${item.cost_plus5.toFixed(1)} (${item.total_cost_plus5.toFixed(1)})</td>
+            <td class="px-4 py-3 text-right">${item.price.toFixed(1)} (${item.total_price.toFixed(1)})</td>`;
+        body.appendChild(tr);
+    });
+
+    totalCost.textContent = result.total_cost_plus5.toFixed(1);
+    totalPrice.textContent = result.total_price.toFixed(1);
+    resultsDiv.classList.toggle('hidden', result.dispensation.length === 0);
+
+    if (result.warnings && result.warnings.length) {
+        result.warnings.forEach(w => {
+            const li = document.createElement('li'); li.textContent = w;
+            warningList.appendChild(li);
+        });
+        warningsDiv.classList.remove('hidden');
+    } else {
+        warningsDiv.classList.add('hidden');
+    }
+
+    if (result.errors && result.errors.length) {
+        result.errors.forEach(e => {
+            const li = document.createElement('li'); li.textContent = e;
+            errorList.appendChild(li);
+        });
+        errorsDiv.classList.remove('hidden');
+    } else {
+        errorsDiv.classList.add('hidden');
+    }
+}
+
+function showError(msg) {
+    document.getElementById('error-list').innerHTML = `<li>${msg}</li>`;
+    document.getElementById('errors').classList.remove('hidden');
+}
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+    prescriptionInput.value = '';
+    document.getElementById('duration').value = '4';
+    document.getElementById('unit').value = 'weeks';
+    document.getElementById('results').classList.add('hidden');
+    document.getElementById('warnings').classList.add('hidden');
+    document.getElementById('errors').classList.add('hidden');
+    autocompleteDropdown.classList.add('hidden');
+});
+
+document.getElementById('toggleFormats').addEventListener('click', () => {
+    const sec = document.getElementById('inputFormats');
+    const icon = document.getElementById('toggleIcon');
+    sec.classList.toggle('hidden');
+    icon.classList.toggle('rotate-180');
+});
+
+// ── Custom Drugs modal ────────────────────────────────────────────────────
+const modal = document.getElementById('customDrugsModal');
+document.getElementById('manageCustomDrugs').addEventListener('click', () => {
+    modal.classList.remove('hidden');
+    refreshCustomList();
+});
+document.getElementById('closeCustomDrugsModal').addEventListener('click',
+    () => modal.classList.add('hidden'));
+
+document.getElementById('customDrugCost').addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    if (!isNaN(v)) document.getElementById('customDrugCostPlus5').value = (v * 1.05).toFixed(2);
+});
+
+document.getElementById('addCustomDrug').addEventListener('click', () => {
+    const name = document.getElementById('customDrugName').value.trim();
+    const cost = parseFloat(document.getElementById('customDrugCost').value);
+    const cp5 = parseFloat(document.getElementById('customDrugCostPlus5').value);
+    const price = parseFloat(document.getElementById('customDrugPrice').value);
+
+    if (!name || isNaN(cost) || isNaN(cp5) || isNaN(price)) {
+        alert('Please fill in all fields with valid values.'); return;
+    }
+
+    DB.addCustom(name, cost, cp5, price);
+
+    document.getElementById('customDrugName').value = '';
+    document.getElementById('customDrugCost').value = '';
+    document.getElementById('customDrugCostPlus5').value = '';
+    document.getElementById('customDrugPrice').value = '';
+    refreshCustomList();
+});
+
+function refreshCustomList() {
+    const drugs = DB.custom.map(d => ({
+        drug: d.full_name, cost: d.cost, cost_plus5: d.cost_plus5, price: d.price
+    }));
+    const list = document.getElementById('customDrugsList');
+    list.innerHTML = '';
+
+    if (!drugs.length) {
+        list.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-sm">No custom drugs added yet.</p>';
+        return;
+    }
+
+    drugs.forEach((drug, i) => {
+        const div = document.createElement('div');
+        div.className = 'bg-white dark:bg-gray-600 p-3 rounded-md flex justify-between items-center';
+        div.innerHTML = `
+            <div class="flex-1">
+                <p class="font-medium">${drug.drug}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-300">
+                    Cost: ${drug.cost} | Cost+5%: ${drug.cost_plus5} | Price: ${drug.price}
+                </p>
+            </div>
+            <button data-index="${i}"
+                    class="delete-drug px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors text-sm">
+                Delete
+            </button>`;
+        list.appendChild(div);
+    });
+
+    document.querySelectorAll('.delete-drug').forEach(btn => {
+        btn.addEventListener('click', e => {
+            const idx = parseInt(e.target.dataset.index);
+            DB.deleteCustom(idx);
+            refreshCustomList();
+        });
+    });
+}
+
+// ── Dark mode ─────────────────────────────────────────────────────────────
+if (window.matchMedia('(prefers-color-scheme: dark)').matches)
+    document.documentElement.classList.add('dark');
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    document.documentElement.classList.toggle('dark', e.matches);
+});
+
+// expose engine for automated verification
+window.__rx = { parsePrescription, autocomplete: t => DB.autocomplete(t) };
+</script>
+</body>
+</html>
