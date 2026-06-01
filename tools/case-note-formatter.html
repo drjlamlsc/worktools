@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Case Note Formatter</title>
+<style>
+  /* ── Fonts ──────────────────────────────────────────────────────────── */
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  /* ── Variables ──────────────────────────────────────────────────────── */
+  :root {
+    --bg:        #13151a;
+    --bg-pane:   #0e1014;
+    --bg-hover:  #1c1f27;
+    --border:    #2a2d38;
+    --border-hi: #3d4155;
+    --fg:        #d4d8e8;
+    --fg-dim:    #555a72;
+    --fg-faint:  #333748;
+    --accent:    #7eb8f7;
+    --accent-dim:#3a5a80;
+    --green:     #7dd4a0;
+    --red:       #e07070;
+    --mono:      'IBM Plex Mono', 'Menlo', monospace;
+    --sans:      'IBM Plex Sans', system-ui, sans-serif;
+  }
+
+  /* ── Reset ──────────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Toolbar ────────────────────────────────────────────────────────── */
+  #toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    height: 48px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--bg);
+  }
+
+  #toolbar h1 {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: .04em;
+    margin-right: auto;
+  }
+
+  .btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--fg-dim);
+    cursor: pointer;
+    transition: background .12s, color .12s, border-color .12s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg-hover); color: var(--fg); border-color: var(--border-hi); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+  .btn-primary:hover { background: #a0ccfa; border-color: #a0ccfa; color: var(--bg); }
+
+  /* ── Column labels ──────────────────────────────────────────────────── */
+  #labels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  #labels span {
+    background: var(--bg);
+    padding: 6px 14px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    color: var(--fg-faint);
+    text-transform: uppercase;
+  }
+
+  /* ── Panes ──────────────────────────────────────────────────────────── */
+  #panes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .pane {
+    background: var(--bg-pane);
+    overflow: hidden;
+    position: relative;
+  }
+
+  textarea {
+    width: 100%;
+    height: 100%;
+    resize: none;
+    background: transparent;
+    color: var(--fg);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.65;
+    border: none;
+    outline: none;
+    padding: 14px;
+    caret-color: var(--accent);
+  }
+  textarea::selection { background: var(--accent-dim); }
+  textarea::placeholder { color: var(--fg-faint); }
+
+  #out {
+    color: var(--fg);
+  }
+  #out.has-error { color: var(--red); }
+
+  /* Thin scrollbars */
+  textarea::-webkit-scrollbar { width: 6px; height: 6px; }
+  textarea::-webkit-scrollbar-track { background: transparent; }
+  textarea::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+
+  /* ── Status bar ─────────────────────────────────────────────────────── */
+  #statusbar {
+    height: 28px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    flex-shrink: 0;
+    background: var(--bg);
+  }
+
+  #status {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--fg-dim);
+    transition: color .2s;
+  }
+  #status.ok  { color: var(--green); }
+  #status.err { color: var(--red); }
+
+  #hint {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--fg-faint);
+  }
+
+  /* ── Copy flash ─────────────────────────────────────────────────────── */
+  @keyframes flashborder {
+    0%   { box-shadow: inset 0 0 0 1px var(--green); }
+    100% { box-shadow: inset 0 0 0 1px transparent; }
+  }
+  .flash { animation: flashborder .4s ease-out; }
+</style>
+</head>
+<body>
+
+<!-- ── Toolbar ────────────────────────────────────────────────────────────── -->
+<div id="toolbar">
+  <h1>// CASE NOTE FORMATTER</h1>
+  <button class="btn" onclick="openFile()">Open file</button>
+  <button class="btn" onclick="clearAll()">Clear</button>
+  <button class="btn" onclick="copyOutput()">Copy output</button>
+  <button class="btn" onclick="saveOutput()">Save output</button>
+  <button class="btn btn-primary" onclick="format()">Format →</button>
+</div>
+
+<!-- ── Column labels ──────────────────────────────────────────────────────── -->
+<div id="labels">
+  <span>Raw input</span>
+  <span>Formatted output</span>
+</div>
+
+<!-- ── Text panes ─────────────────────────────────────────────────────────── -->
+<div id="panes">
+  <div class="pane">
+    <textarea id="inp" spellcheck="false"
+      placeholder="Paste raw case notes here…
+
+Notes must contain month / day / year headers, e.g.:
+
+APR
+20
+2026
+MON
+Dr. Lam Chun Leung  |  TST
+Dx: …"></textarea>
+  </div>
+  <div class="pane">
+    <textarea id="out" spellcheck="false" readonly
+      placeholder="Formatted output will appear here…"></textarea>
+  </div>
+</div>
+
+<!-- ── Status bar ─────────────────────────────────────────────────────────── -->
+<div id="statusbar">
+  <span id="status">Ready</span>
+  <span id="hint">Ctrl / ⌘ + Enter &nbsp;·&nbsp; format &nbsp;&nbsp; Ctrl / ⌘ + K &nbsp;·&nbsp; clear</span>
+</div>
+
+<!-- Hidden file input -->
+<input type="file" id="fileinput" accept=".txt" style="display:none" onchange="handleFile(event)">
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   FORMATTER LOGIC  (ported from Python)
+═══════════════════════════════════════════════════════════════════════════ */
+
+const MONTHS = {
+  JAN:1, FEB:2, MAR:3, APR:4, MAY:5, JUN:6,
+  JUL:7, AUG:8, SEP:9, OCT:10, NOV:11, DEC:12
+};
+
+const MGMT_PREFIXES = [
+  'rx:', 'fu ', 'discussed ', 'advised ', 'strongly advised',
+  'advise ', 'switch ', 'switched ', 'reduce ', 'reduced ',
+  'step up', 'step down', 'taper', 'further tapering', 'titrat',
+  'add ', 'added ', 'off pregabalin', 'off quetiapine', 'off rexulti',
+  'off abilify', 'off diazepam', 'resume ', 'resumed ', 'same med',
+  'same rx', 'no change in med', 'adjust ', 'adjusted ',
+  'increase ', 'increased ', 'trial ', 'try ', 'imp:', 'impression:',
+  'explain', 'psychoeducat', 'psychoeducation', 'letter to',
+  'pt not keen', 'pt keen', 'pt prefers', 'pt is keen',
+  'monitor ', 'refer ', 'address ', 'addressed ', 'emphasised',
+  'emphasized', 'validat', 'cognitive strat', 'exploration of',
+  'support, advised',
+];
+
+const NON_CONSULT = [
+  '(not a consultation)', '(not consultation)', '(phone contact',
+  'phone contacted pt', 'pt contacted clinic', 'pt unable to come',
+  'pt has rescheduled', 'requests drug refill', 'pt asks to refill',
+  'rescheduled to', 'not a consultation', 'not consultation',
+];
+
+const INLINE_DATE = /^(\d{1,2}\/\d{1,2}\/\d{2,4})(.*)/;
+
+function isMgmt(line) {
+  const s = line.trim().toLowerCase();
+  if (/^fu\b/.test(s)) return true;
+  return MGMT_PREFIXES.some(p => s.startsWith(p));
+}
+
+// ── Split raw text into per-note blocks ──────────────────────────────────────
+function splitBlocks(text) {
+  const lines = text.split('\n');
+  const blocks = [];
+  let cur = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const s = lines[i].trim();
+    if (
+      MONTHS[s] !== undefined &&
+      i + 2 < lines.length &&
+      /^\d{1,2}$/.test(lines[i + 1].trim()) &&
+      /^\d{4}$/.test(lines[i + 2].trim())
+    ) {
+      if (cur.length) blocks.push(cur.join('\n'));
+      cur = [s];
+    } else {
+      cur.push(s);
+    }
+  }
+  if (cur.length) blocks.push(cur.join('\n'));
+  return blocks.filter(b => b.trim());
+}
+
+// ── Parse a single block into structured components ──────────────────────────
+function parseBlock(block) {
+  const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length || MONTHS[lines[0]] === undefined) return null;
+
+  const month = MONTHS[lines[0]];
+  let day = null, year = null;
+
+  for (let i = 1; i < Math.min(5, lines.length); i++) {
+    if (/^\d{1,2}$/.test(lines[i]) && day === null) day = +lines[i];
+    else if (/^\d{4}$/.test(lines[i]) && year === null) year = +lines[i];
+  }
+  if (!day || !year) return null;
+
+  let date;
+  try {
+    date = new Date(year, month - 1, day);
+    if (isNaN(date)) return null;
+  } catch { return null; }
+
+  // Find content start (line after "Dr. …")
+  let contentStart = null;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith('Dr.')) { contentStart = i + 1; break; }
+  }
+  if (contentStart === null) return null;
+
+  const content = lines.slice(contentStart);
+  if (!content.length) return null;
+
+  // Non-consultation?
+  const fullLower = content.join('\n').toLowerCase();
+  const isNonConsult = NON_CONSULT.some(m => fullLower.includes(m));
+
+  // Separate pre-date (Dx/demographics) from clinical content
+  const preDate = [], clinical = [];
+  let foundDate = false;
+
+  for (const line of content) {
+    if (!foundDate) {
+      const m = INLINE_DATE.exec(line);
+      if (m) {
+        foundDate = true;
+        clinical.push(m[1]);
+        const rest = m[2].trim();
+        if (rest) clinical.push(rest);
+      } else {
+        preDate.push(line);
+      }
+    } else {
+      clinical.push(line);
+    }
+  }
+  if (!foundDate) clinical.push(...content);
+
+  // Locate MSE section
+  const mseIdx = clinical.findIndex(l => /^mse\s*:?\s*$/i.test(l));
+  let preMse, afterMse;
+  if (mseIdx !== -1) {
+    preMse   = clinical.slice(0, mseIdx);
+    afterMse = clinical.slice(mseIdx + 1);
+  } else {
+    preMse   = clinical;
+    afterMse = [];
+  }
+
+  // Split MSE lines from management lines
+  const mseLines = [], mgmtLines = [];
+  let inMgmt = false;
+  for (const line of afterMse) {
+    if (!inMgmt && isMgmt(line)) inMgmt = true;
+    (inMgmt ? mgmtLines : mseLines).push(line);
+  }
+
+  return { date, preDate, clinical: preMse, hasMse: mseIdx !== -1,
+           mse: mseLines, management: mgmtLines, isNonConsult };
+}
+
+// ── Render a parsed note ─────────────────────────────────────────────────────
+function renderNote(note) {
+  const out = ['---'];
+  out.push(...note.preDate);
+  out.push(...note.clinical);
+  if (note.hasMse) {
+    out.push('MSE:');
+    out.push(...note.mse);
+  }
+  if (note.management.length) {
+    out.push('');
+    out.push('Mx:');
+    out.push(...note.management);
+  }
+  return out.join('\n');
+}
+
+// ── Full pipeline ────────────────────────────────────────────────────────────
+function process(text) {
+  const notes = splitBlocks(text)
+    .map(parseBlock)
+    .filter(Boolean)
+    .sort((a, b) => a.date - b.date);
+
+  if (!notes.length)
+    return '(No valid notes found — check that your input contains month/day/year headers.)';
+
+  return notes.map(renderNote).join('\n\n');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UI ACTIONS
+═══════════════════════════════════════════════════════════════════════════ */
+
+const inp    = document.getElementById('inp');
+const out    = document.getElementById('out');
+const status = document.getElementById('status');
+
+function setStatus(msg, cls = '') {
+  status.textContent = msg;
+  status.className = cls;
+}
+
+function format() {
+  const raw = inp.value.trim();
+  if (!raw) {
+    setStatus('⚠  Paste some notes in the left panel first.', 'err');
+    return;
+  }
+  try {
+    const result = process(raw);
+    out.value = result;
+    out.classList.remove('has-error');
+    const count = (result.match(/^---/gm) || []).length;
+    setStatus(`✓  ${count} note(s) sorted chronologically.`, 'ok');
+  } catch (e) {
+    out.value = 'Error: ' + e.message;
+    out.classList.add('has-error');
+    setStatus('✗  ' + e.message, 'err');
+  }
+}
+
+function clearAll() {
+  inp.value = '';
+  out.value = '';
+  out.classList.remove('has-error');
+  inp.focus();
+  setStatus('Cleared.', '');
+}
+
+function copyOutput() {
+  const text = out.value.trim();
+  if (!text) { setStatus('⚠  Nothing to copy.', 'err'); return; }
+  navigator.clipboard.writeText(text).then(() => {
+    setStatus('✓  Copied to clipboard.', 'ok');
+    out.parentElement.classList.add('flash');
+    setTimeout(() => out.parentElement.classList.remove('flash'), 400);
+  }).catch(() => {
+    out.select();
+    document.execCommand('copy');
+    setStatus('✓  Copied.', 'ok');
+  });
+}
+
+function saveOutput() {
+  const text = out.value.trim();
+  if (!text) { setStatus('⚠  Nothing to save.', 'err'); return; }
+  const blob = new Blob([text], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'formatted_notes.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus('✓  Saved as formatted_notes.txt', 'ok');
+}
+
+function openFile() {
+  document.getElementById('fileinput').click();
+}
+
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    inp.value = ev.target.result;
+    setStatus(`Opened: ${file.name}`, '');
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+/* ── Keyboard shortcuts ─────────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key === 'Enter') { e.preventDefault(); format(); }
+  if (mod && e.key === 'k')     { e.preventDefault(); clearAll(); }
+});
+</script>
+</body>
+</html>
