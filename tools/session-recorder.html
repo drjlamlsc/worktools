@@ -5,115 +5,214 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Session Recorder</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── THEME TOKENS (follows macOS appearance) ── */
 :root {
-  --bg: #f4f2ed;
-  --surface: #ffffff;
-  --surface2: #f4f2ed;
-  --border: rgba(0,0,0,0.09);
-  --border-mid: rgba(0,0,0,0.14);
-  --text: #1e1d1b;
-  --text2: #6b6a66;
-  --text3: #9b9a96;
-  --accent: #2563c9;
-  --accent-light: #dce8f8;
+  --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
+
+  --desktop: linear-gradient(135deg, #9fb4f2 0%, #c3a9e0 52%, #f0bfd0 100%);
+  --ring: rgba(0,0,0,0.28);
+  --chrome: #ececed;
+  --chrome-border: rgba(0,0,0,0.12);
+  --content: #ffffff;
+  --canvas: #e5e5ea;
+  --grid: rgba(0,0,0,0.035);
+  --glass: rgba(255,255,255,0.55);
+  --dash: #b9b9c0;
+  --sidebar: #f5f5f7;
+  --group: #ffffff;
+  --sep: rgba(0,0,0,0.09);
+
+  --text: #1d1d1f;
+  --text2: #6e6e73;
+  --text3: #98989d;
+  --control: #ffffff;
+  --control-border: rgba(0,0,0,0.16);
+
+  --accent: #007aff;
+  --accent-dk: #0062cc;
+  --accent-ring: rgba(0,122,255,0.30);
   --green: #1a7a54;
   --green-light: #d6f0e5;
   --red: #c0392b;
   --red-light: #fbe8e6;
   --amber: #b45309;
-  --amber-light: #fef3cd;
-  --radius: 8px;
-  --radius-lg: 12px;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
-  --shadow: 0 4px 12px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+  --blue: #2563c9;
+  --blue-light: #dce8f8;
+  --scroll: rgba(0,0,0,0.22);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --desktop: linear-gradient(135deg, #1c2541 0%, #3a2b57 55%, #5b3256 100%);
+    --ring: rgba(255,255,255,0.18);
+    --chrome: #2d2d30;
+    --chrome-border: rgba(255,255,255,0.10);
+    --content: #1e1e20;
+    --canvas: #161618;
+    --grid: rgba(255,255,255,0.03);
+    --glass: rgba(255,255,255,0.04);
+    --dash: #4b4b52;
+    --sidebar: #28282b;
+    --group: #333336;
+    --sep: rgba(255,255,255,0.10);
+
+    --text: #f5f5f7;
+    --text2: #a1a1a6;
+    --text3: #6e6e73;
+    --control: #3a3a3d;
+    --control-border: rgba(255,255,255,0.16);
+
+    --accent: #0a84ff;
+    --accent-dk: #3b9cff;
+    --accent-ring: rgba(10,132,255,0.45);
+    --green: #30d158;
+    --green-light: rgba(48,209,88,0.18);
+    --red: #ff6961;
+    --red-light: rgba(255,69,58,0.18);
+    --amber: #ff9f0a;
+    --blue: #64a8ff;
+    --blue-light: rgba(10,132,255,0.20);
+    --scroll: rgba(255,255,255,0.25);
+  }
 }
 
+html, body { height: 100%; }
 body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--bg);
+  font-family: var(--sans);
+  background: var(--desktop);
   color: var(--text);
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
   font-size: 13px;
   line-height: 1.4;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ── HEADER ── */
-.header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 0 16px;
-  height: 48px;
+/* ── DESKTOP + WINDOW ── */
+.desktop { height: 100vh; padding: 22px; display: flex; }
+.window {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--content);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 0 0.5px var(--ring), 0 22px 60px rgba(0,0,0,0.32), 0 4px 14px rgba(0,0,0,0.18);
+}
+.desktop.maximized { padding: 0; }
+.desktop.maximized .window { border-radius: 0; box-shadow: none; }
+@media (max-width: 820px) {
+  .desktop { padding: 0; }
+  .window { border-radius: 0; box-shadow: none; }
+}
+
+/* ── TITLE BAR ── */
+.titlebar {
+  height: 38px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-  z-index: 10;
+  padding: 0 14px;
+  background: var(--chrome);
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.header-brand {
-  font-size: 14px;
+.lights { display: flex; gap: 8px; z-index: 2; }
+.light {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  border: 0.5px solid rgba(0,0,0,0.18);
+}
+.light.red    { background: #ff5f57; }
+.light.yellow { background: #febc2e; }
+.light.green  { background: #28c840; cursor: pointer; }
+.title {
+  position: absolute;
+  left: 0; right: 0;
+  text-align: center;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--text);
-  letter-spacing: -0.3px;
-  margin-right: 4px;
+  pointer-events: none;
 }
-.header-brand span { color: var(--accent); }
-.h-sep { width: 1px; height: 20px; background: var(--border-mid); }
+.tb-right { margin-left: auto; z-index: 2; }
+
+/* ── TOOLBAR ── */
+.toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 7px 14px 9px;
+  background: var(--chrome);
+  border-bottom: 1px solid var(--chrome-border);
+}
 .h-field { display: flex; align-items: center; gap: 6px; }
-.h-label { font-size: 11px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+.h-label { font-size: 11px; color: var(--text2); font-weight: 500; }
 .h-input {
-  border: 1px solid var(--border-mid);
+  height: 24px;
+  border: 1px solid var(--control-border);
   border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 12px;
-  font-family: 'DM Sans', sans-serif;
+  padding: 0 8px;
+  font: 12px var(--sans);
   color: var(--text);
-  background: var(--bg);
+  background: var(--control);
   outline: none;
-  transition: border-color 0.15s;
+  box-shadow: 0 0.5px 1px rgba(0,0,0,0.06);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  color-scheme: light dark;
 }
-.h-input:focus { border-color: var(--accent); background: var(--surface); }
-select.h-input { cursor: pointer; padding-right: 20px; }
+.h-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+select.h-input {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  padding-right: 22px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='12' viewBox='0 0 8 12'%3E%3Cpath d='M1 4.5 4 1.5 7 4.5M1 7.5 4 10.5 7 7.5' fill='none' stroke='%238e8e93' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+}
 .clinic-badge {
-  padding: 3px 10px;
+  padding: 2px 10px;
   border-radius: 20px;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.02em;
 }
-.clinic-c1 { background: var(--accent-light); color: var(--accent); }
+.clinic-c1 { background: var(--blue-light); color: var(--blue); }
 .clinic-c2 { background: var(--green-light); color: var(--green); }
-.header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-.clear-btn {
-  padding: 5px 12px;
+
+/* ── BUTTONS ── */
+.btn {
+  height: 26px;
+  padding: 0 12px;
   border-radius: 6px;
-  font-size: 11px;
-  font-weight: 500;
+  font: 500 12px var(--sans);
   cursor: pointer;
-  border: 1px solid var(--border-mid);
-  background: var(--surface);
-  color: var(--text2);
-  transition: all 0.15s;
-  font-family: 'DM Sans', sans-serif;
+  border: 1px solid var(--control-border);
+  background: var(--control);
+  color: var(--text);
+  box-shadow: 0 0.5px 1px rgba(0,0,0,0.08);
+  transition: background 0.12s, border-color 0.12s;
+  white-space: nowrap;
 }
-.clear-btn:hover { background: var(--red-light); border-color: var(--red); color: var(--red); }
+.btn:hover { background: var(--group); border-color: var(--text3); }
+.btn:active { transform: translateY(0.5px); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-dk); border-color: var(--accent-dk); }
+.btn-danger:hover { background: var(--red-light); border-color: var(--red); color: var(--red); }
 
 /* ── PALETTE ── */
 .palette {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 0 16px;
-  height: 44px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 0;
-  flex-shrink: 0;
+  height: 46px;
+  padding: 0 14px;
+  background: var(--content);
+  border-bottom: 1px solid var(--sep);
   overflow-x: auto;
 }
 .palette::-webkit-scrollbar { height: 0; }
@@ -123,7 +222,7 @@ select.h-input { cursor: pointer; padding-right: 20px; }
   gap: 4px;
   padding: 0 12px 0 0;
   margin: 0 8px 0 0;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--sep);
   flex-shrink: 0;
 }
 .p-group:last-child { border-right: none; }
@@ -142,50 +241,30 @@ select.h-input { cursor: pointer; padding-right: 20px; }
   gap: 3px;
   padding: 4px 9px;
   border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
+  font: 600 11px var(--mono);
   cursor: pointer;
   user-select: none;
+  -webkit-user-select: none;
   white-space: nowrap;
   border: 1.5px solid transparent;
-  transition: all 0.12s;
-  letter-spacing: 0.01em;
-  font-family: 'DM Mono', monospace;
+  transition: transform 0.12s, box-shadow 0.12s;
 }
-.chip:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
-.chip.active-tool {
-  box-shadow: 0 0 0 2.5px var(--accent), var(--shadow-sm);
-  transform: translateY(-1px);
-}
+.chip:hover { transform: translateY(-1px); box-shadow: 0 1px 4px rgba(0,0,0,0.18); }
+.chip.active-tool { box-shadow: 0 0 0 2.5px var(--accent); transform: translateY(-1px); }
 .chip:active { transform: translateY(0); }
-.kbadge {
-  font-size: 8px;
-  font-family: 'DM Mono', monospace;
-  font-weight: 700;
-  opacity: 0.5;
-  margin-right: 1px;
-  letter-spacing: 0;
-}
+.kbadge { font-size: 9px; font-weight: 700; opacity: 0.55; margin-right: 1px; }
 
 /* ── WORKSPACE ── */
-.workspace {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-  gap: 0;
-}
+.workspace { flex: 1; display: flex; overflow: hidden; min-height: 0; }
 
-/* ── IMAGE AREA ── */
 .image-area {
   flex: 1;
-  display: flex;
-  flex-direction: column;
   position: relative;
   overflow: hidden;
-  background: #e8e6df;
-  background-image: 
-    linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px);
+  background-color: var(--canvas);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -196,84 +275,121 @@ select.h-input { cursor: pointer; padding-right: 20px; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 2px dashed #c5c3bc;
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  transition: all 0.2s;
-  background: rgba(255,255,255,0.5);
-  backdrop-filter: blur(4px);
-}
-.upload-zone:hover, .upload-zone.drag-over {
-  border-color: var(--accent);
-  background: rgba(37, 99, 201, 0.04);
-}
-.upload-icon {
-  width: 52px;
-  height: 52px;
-  background: var(--surface);
+  border: 2px dashed var(--dash);
   border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  background: var(--glass);
+}
+.upload-zone:hover, .image-area.drag-over .upload-zone { border-color: var(--accent); background: var(--accent-ring); }
+.upload-icon {
+  width: 52px; height: 52px;
+  background: var(--control);
+  border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
   font-size: 24px;
   margin-bottom: 14px;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-mid);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  border: 1px solid var(--control-border);
 }
-.upload-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-.upload-sub { font-size: 12px; color: var(--text3); }
+.upload-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.upload-sub { font-size: 12px; color: var(--text2); }
 .upload-hint {
   margin-top: 16px;
-  padding: 6px 14px;
-  background: var(--surface);
-  border: 1px solid var(--border-mid);
+  padding: 5px 14px;
+  background: var(--control);
+  border: 1px solid var(--control-border);
   border-radius: 20px;
-  font-size: 11px;
+  font: 11px var(--mono);
   color: var(--text2);
-  font-family: 'DM Mono', monospace;
 }
 .upload-hint kbd {
-  background: var(--bg);
-  border: 1px solid var(--border-mid);
-  border-radius: 3px;
+  background: var(--chrome);
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
   padding: 1px 5px;
-  font-size: 10px;
-  font-family: 'DM Mono', monospace;
+  font: 10px var(--mono);
 }
 
+/* stacked images */
 .image-container {
   position: absolute;
   inset: 0;
   display: none;
   overflow: auto;
+  padding: 16px;
 }
 .image-container.active { display: block; }
-.image-wrapper {
+.image-container::-webkit-scrollbar { width: 10px; }
+.image-container::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
+.img-stack { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.img-card {
   position: relative;
-  display: inline-block;
-  min-width: 100%;
-  min-height: 100%;
+  width: max-content;
+  max-width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.25), 0 4px 16px rgba(0,0,0,0.18);
+  background: #fff;
 }
-#preview-img {
+.img-card img {
   display: block;
   max-width: 100%;
   height: auto;
+  border-radius: 8px;
   pointer-events: none;
   user-select: none;
+  -webkit-user-select: none;
 }
-#ann-overlay {
+.ann-overlay { position: absolute; inset: 0; cursor: default; }
+.image-area.placing .ann-overlay { cursor: crosshair; }
+.img-remove {
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  cursor: default;
+  top: 8px; right: 8px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(30,30,30,0.72);
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  z-index: 30;
+}
+.img-card:hover .img-remove { opacity: 1; }
+.img-remove:hover { background: var(--red); }
+
+.add-more {
+  width: 100%;
+  max-width: 520px;
+  padding: 14px;
+  border: 1.5px dashed var(--dash);
+  border-radius: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  background: var(--glass);
+  transition: border-color 0.15s, color 0.15s;
+}
+.add-more:hover, .image-area.drag-over .add-more { border-color: var(--accent); color: var(--accent); }
+.add-more kbd {
+  background: var(--chrome);
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font: 10px var(--mono);
 }
 
-/* Mode indicator */
+/* mode indicator (HUD) */
 .mode-bar {
   position: absolute;
   top: 12px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--text);
+  background: rgba(40,40,42,0.88);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   color: #fff;
   padding: 6px 14px;
   border-radius: 20px;
@@ -283,485 +399,328 @@ select.h-input { cursor: pointer; padding-right: 20px; }
   align-items: center;
   gap: 8px;
   z-index: 100;
-  box-shadow: var(--shadow);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
   pointer-events: none;
 }
 .mode-bar.visible { display: flex; }
-.mode-chip-preview {
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 10px;
-  font-weight: 700;
-  font-family: 'DM Mono', monospace;
-}
+.mode-chip-preview { padding: 2px 8px; border-radius: 10px; font: 700 10px var(--mono); }
 .mode-esc {
   pointer-events: all;
   cursor: pointer;
-  opacity: 0.6;
+  opacity: 0.7;
   font-size: 10px;
-  background: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.18);
   padding: 2px 6px;
   border-radius: 6px;
 }
 .mode-esc:hover { opacity: 1; }
 
-/* Annotation chips on image */
+/* annotation chips on image */
 .ann-chip {
   position: absolute;
   transform: translate(-50%, -50%);
   padding: 3px 8px;
   border-radius: 12px;
-  font-size: 10px;
-  font-weight: 700;
-  font-family: 'DM Mono', monospace;
+  font: 700 10px var(--mono);
   cursor: move;
   user-select: none;
+  -webkit-user-select: none;
   border: 1.5px solid;
   display: flex;
   align-items: center;
   gap: 3px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.22);
   z-index: 10;
-  transition: box-shadow 0.1s, transform 0.1s;
 }
-.ann-chip:hover {
-  box-shadow: 0 3px 10px rgba(0,0,0,0.25);
-  z-index: 20;
-}
+.ann-chip:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.3); z-index: 20; }
 .ann-chip:hover .ann-x { opacity: 1; }
 .ann-x {
   opacity: 0;
-  width: 13px;
-  height: 13px;
+  width: 13px; height: 13px;
   border-radius: 50%;
   background: rgba(0,0,0,0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   cursor: pointer;
   font-size: 8px;
   color: #fff;
   flex-shrink: 0;
-  transition: all 0.1s;
   line-height: 1;
 }
-.ann-x:hover { background: #c0392b !important; opacity: 1; }
+.ann-x:hover { background: #c0392b; opacity: 1; }
 
-/* ── RIGHT PANEL ── */
+/* ── SIDEBAR ── */
 .right-panel {
   width: 268px;
   flex-shrink: 0;
-  background: var(--surface);
-  border-left: 1px solid var(--border);
+  background: var(--sidebar);
+  border-left: 1px solid var(--sep);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 .rp-scroll { flex: 1; overflow-y: auto; }
-.rp-scroll::-webkit-scrollbar { width: 3px; }
-.rp-scroll::-webkit-scrollbar-thumb { background: #d5d3cc; border-radius: 3px; }
-
-.rp-sec {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border);
-}
+.rp-scroll::-webkit-scrollbar { width: 6px; }
+.rp-scroll::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 6px; }
+.rp-sec { padding: 14px; }
 .rp-head {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text3);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
   margin-bottom: 10px;
 }
-
-/* Financials */
-.fin-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 7px;
-  gap: 6px;
-}
-.fin-lbl {
-  font-size: 12px;
-  color: var(--text2);
-  flex: 1;
-  min-width: 0;
-}
-.fin-inp {
-  width: 110px;
-  border: 1px solid var(--border-mid);
-  border-radius: 6px;
-  padding: 5px 8px;
-  font-size: 12px;
-  font-family: 'DM Mono', monospace;
-  text-align: right;
-  color: var(--text);
-  background: var(--bg);
-  outline: none;
-  transition: border-color 0.15s, background 0.15s;
-  flex-shrink: 0;
-}
-.fin-inp:focus { border-color: var(--accent); background: var(--surface); }
-.fin-inp::placeholder { color: var(--text3); font-family: 'DM Sans', sans-serif; }
-
-.divider { height: 1px; background: var(--border); margin: 8px 0; }
-
-.net-row {
-  display: flex;
-  align-items: center;
-  padding: 6px 10px;
-  background: var(--green-light);
-  border-radius: var(--radius);
-  margin-top: 4px;
-}
-.net-row.negative { background: var(--red-light); }
-.net-lbl { font-size: 11px; font-weight: 600; color: var(--green); flex: 1; }
-.net-row.negative .net-lbl { color: var(--red); }
-.net-val {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--green);
-  font-family: 'DM Mono', monospace;
-}
-.net-row.negative .net-val { color: var(--red); }
-
-/* Toggle */
-.tog-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 7px;
-  gap: 6px;
-}
-.tog-lbl { font-size: 12px; color: var(--text2); flex: 1; }
-.tog-wrap { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
-.tog-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
-.tog-track {
-  position: absolute;
-  inset: 0;
-  background: #d3d1c7;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.tog-track::after {
-  content: '';
-  position: absolute;
-  width: 14px; height: 14px;
-  background: #fff;
-  border-radius: 50%;
-  top: 3px; left: 3px;
-  transition: transform 0.2s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-.tog-wrap input:checked + .tog-track { background: var(--accent); }
-.tog-wrap input:checked + .tog-track::after { transform: translateX(16px); }
-.tog-dimmed { opacity: 0.38; pointer-events: none; }
-
-/* Summary */
-.sum-kpi {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-bottom: 8px;
-}
+.sum-kpi { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
 .kpi {
-  background: var(--bg);
-  border-radius: var(--radius);
-  padding: 8px 10px;
-  border: 1px solid var(--border);
+  background: var(--group);
+  border-radius: 10px;
+  padding: 8px 11px;
+  border: 1px solid var(--sep);
 }
-.kpi-lbl { font-size: 10px; color: var(--text3); font-weight: 500; }
-.kpi-val { font-size: 20px; font-weight: 700; color: var(--text); font-family: 'DM Mono', monospace; line-height: 1.2; margin-top: 1px; }
-.kpi-val.green { color: var(--green); }
-.kpi-val.red { color: #c0392b; }
+.kpi-lbl { font-size: 10px; color: var(--text2); font-weight: 500; }
+.kpi-val { font: 600 20px var(--mono); line-height: 1.2; margin-top: 1px; }
+.kpi-val.red { color: var(--red); }
 .kpi-val.blue { color: var(--accent); }
-.kpi-val.amber { color: var(--amber); }
-
-.sum-rows { }
+.sum-sub-head {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  margin: 14px 0 6px;
+  padding-left: 2px;
+}
+.group {
+  background: var(--group);
+  border: 1px solid var(--sep);
+  border-radius: 10px;
+  padding: 0 11px;
+}
 .sr {
   display: flex;
   align-items: center;
-  padding: 4px 0;
-  border-bottom: 1px solid var(--border);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--sep);
   font-size: 12px;
 }
 .sr:last-child { border-bottom: none; }
-.sr-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  margin-right: 7px;
-  flex-shrink: 0;
-}
+.sr-dot { width: 7px; height: 7px; border-radius: 50%; margin-right: 8px; flex-shrink: 0; }
 .sr-lbl { color: var(--text2); flex: 1; }
-.sr-val { font-weight: 600; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); }
+.sr-val { font: 600 12px var(--mono); color: var(--text); }
 .sr-zero { color: var(--text3) !important; font-weight: 400; }
 
-.sum-sub-head {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin: 10px 0 5px;
-}
-
-/* Export bar */
 .export-bar {
   padding: 10px 14px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--sep);
   display: flex;
   gap: 6px;
-  background: var(--surface);
   flex-shrink: 0;
 }
-.btn {
-  flex: 1;
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px solid;
-  transition: all 0.15s;
-  font-family: 'DM Sans', sans-serif;
-  text-align: center;
-}
-.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.btn-primary:hover { background: #1a4fa8; border-color: #1a4fa8; }
-.btn-secondary { background: var(--surface); color: var(--text2); border-color: var(--border-mid); }
-.btn-secondary:hover { background: var(--bg); color: var(--text); }
-.btn-sm { flex: 0 0 auto; padding: 8px 10px; }
+.export-bar .btn-primary { flex: 1; }
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
-<div class="header">
-  <div class="header-brand">Session<span>Rx</span></div>
-  <div class="h-sep"></div>
-  <div class="h-field">
-    <span class="h-label">Date</span>
-    <input type="date" class="h-input" id="hDate">
-  </div>
-  <div class="h-field">
-    <span class="h-label">Clinic</span>
-    <select class="h-input" id="hClinic" onchange="onClinicChange()">
-      <option value="C1">Shalom (C1)</option>
-      <option value="C2">Coniferhome (C2)</option>
-    </select>
-  </div>
-  <div class="h-field">
-    <span class="h-label">Session</span>
-    <select class="h-input" id="hSession" onchange="onSessionChange()">
-      <option value="Mon AM">Mon AM</option>
-      <option value="Mon PM">Mon PM</option>
-      <option value="Tue">Tue</option>
-      <option value="Wed">Wed</option>
-      <option value="Thu PM">Thu PM</option>
-      <option value="Fri">Fri</option>
-      <option value="Sat AM">Sat AM</option>
-      <option value="Sat PM">Sat PM</option>
-    </select>
-  </div>
-  <div id="clinicBadge" class="clinic-badge clinic-c1">C1</div>
-  <div class="header-right">
-    <button class="clear-btn" onclick="clearAll()">Clear all</button>
-  </div>
-</div>
+<div class="desktop" id="desktop">
+<div class="window">
 
-<!-- PALETTE -->
-<div class="palette">
-  <div class="p-group">
-    <span class="p-label">Age</span>
-    <div class="chip" id="cp-lt18" draggable="true" title="Numpad 1"
-      onclick="setTool('lt18')" ondragstart="pd(event,'lt18')"
-      style="background:#dce8f8;border-color:#2563c9;color:#1a4fa8"><span class="kbadge">⌨1</span>&lt;18</div>
-    <div class="chip" id="cp-gte18" draggable="true" title="Numpad 2"
-      onclick="setTool('gte18')" ondragstart="pd(event,'gte18')"
-      style="background:#d6f0e5;border-color:#1a7a54;color:#155f42"><span class="kbadge">⌨2</span>≥18</div>
-  </div>
-  <div class="p-group">
-    <span class="p-label">Dx</span>
-    <div class="chip" id="cp-AnD" draggable="true" title="Numpad 4"
-      onclick="setTool('AnD')" ondragstart="pd(event,'AnD')"
-      style="background:#ece9ff;border-color:#6b63d0;color:#3b3490"><span class="kbadge">⌨4</span>An/D</div>
-    <div class="chip" id="cp-ADHD" draggable="true" title="Numpad 5"
-      onclick="setTool('ADHD')" ondragstart="pd(event,'ADHD')"
-      style="background:#fff0d6;border-color:#c97a10;color:#7a4a08"><span class="kbadge">⌨5</span>ADHD</div>
-    <div class="chip" id="cp-ASD" draggable="true" title="Numpad 6"
-      onclick="setTool('ASD')" ondragstart="pd(event,'ASD')"
-      style="background:#fde8e5;border-color:#c0392b;color:#7a1e17"><span class="kbadge">⌨6</span>ASD</div>
-    <div class="chip" id="cp-BAD" draggable="true" title="Numpad 7"
-      onclick="setTool('BAD')" ondragstart="pd(event,'BAD')"
-      style="background:#fce8f2;border-color:#b83d74;color:#7a2048"><span class="kbadge">⌨7</span>BAD</div>
-    <div class="chip" id="cp-Ax" draggable="true" title="Numpad 8"
-      onclick="setTool('Ax')" ondragstart="pd(event,'Ax')"
-      style="background:#e3f5d2;border-color:#5a8f1e;color:#2e5a0a"><span class="kbadge">⌨8</span>Ax</div>
-  </div>
-  <div class="p-group">
-    <span class="p-label">Case</span>
-    <div class="chip" id="cp-NC" draggable="true" title="Numpad 3"
-      onclick="setTool('NC')" ondragstart="pd(event,'NC')"
-      style="background:#fde8e5;border-color:#c0392b;color:#7a1e17"><span class="kbadge">⌨3</span>NC</div>
-  </div>
-  <div class="p-group">
-    <span class="p-label">FU Interval</span>
-    <div class="chip" id="cp-fu1" draggable="true" title="Key 1"
-      onclick="setTool('fu1')" ondragstart="pd(event,'fu1')"
-      style="background:#e3f5d2;border-color:#5a8f1e;color:#2e5a0a"><span class="kbadge">1</span>1-4w</div>
-    <div class="chip" id="cp-fu2" draggable="true" title="Key 2"
-      onclick="setTool('fu2')" ondragstart="pd(event,'fu2')"
-      style="background:#d6f0e5;border-color:#1a7a54;color:#155f42"><span class="kbadge">2</span>5-8w</div>
-    <div class="chip" id="cp-fu3" draggable="true" title="Key 3"
-      onclick="setTool('fu3')" ondragstart="pd(event,'fu3')"
-      style="background:#fff0d6;border-color:#c97a10;color:#7a4a08"><span class="kbadge">3</span>8-12w</div>
-    <div class="chip" id="cp-fu4" draggable="true" title="Key 4"
-      onclick="setTool('fu4')" ondragstart="pd(event,'fu4')"
-      style="background:#fde8e5;border-color:#c0392b;color:#7a1e17"><span class="kbadge">4</span>&gt;12w</div>
-    <div class="chip" id="cp-fu5" draggable="true" title="Key 5"
-      onclick="setTool('fu5')" ondragstart="pd(event,'fu5')"
-      style="background:#edebe5;border-color:#7a7970;color:#3a3936"><span class="kbadge">5</span>no FU</div>
-  </div>
-  <div class="p-group">
-    <span class="p-label">Other</span>
-    <div class="chip" id="cp-medref" draggable="true" title="Numpad 9"
-      onclick="setTool('medref')" ondragstart="pd(event,'medref')"
-      style="background:#e5e3dc;border-color:#6b6960;color:#2e2d2a"><span class="kbadge">⌨9</span>medref</div>
-  </div>
-</div>
-
-<!-- WORKSPACE -->
-<div class="workspace">
-
-  <!-- IMAGE AREA -->
-  <div class="image-area" id="imgArea">
-    <div class="mode-bar" id="modeBar">
-      <span style="color:rgba(255,255,255,0.7);font-size:10px">Placing</span>
-      <span id="modeChip" class="mode-chip-preview"></span>
-      <span id="modeCount" style="font-family:'DM Mono';font-size:11px;opacity:0.6"></span>
-      <span class="mode-esc" onclick="clearTool()">ESC ✕</span>
+  <!-- TITLE BAR -->
+  <div class="titlebar">
+    <div class="lights">
+      <span class="light red"></span>
+      <span class="light yellow"></span>
+      <span class="light green" id="zoomBtn" title="Toggle full window"></span>
     </div>
-
-    <div class="upload-zone" id="uploadZone"
-         onclick="document.getElementById('fileIn').click()"
-         ondragover="event.preventDefault();this.classList.add('drag-over')"
-         ondragleave="this.classList.remove('drag-over')"
-         ondrop="onFileDrop(event)">
-      <div class="upload-icon">🖼</div>
-      <div class="upload-title">Drop or paste patient list</div>
-      <div class="upload-sub">Screenshot, JPG, or PNG</div>
-      <div class="upload-hint"><kbd>Ctrl</kbd>+<kbd>V</kbd> to paste · or click to browse</div>
+    <div class="title">Session Recorder</div>
+    <div class="tb-right">
+      <button class="btn btn-danger" onclick="clearAll()" title="Remove all annotations">Clear all</button>
     </div>
-    <input type="file" id="fileIn" accept="image/*" style="display:none" onchange="onFileInput(event)">
+  </div>
 
-    <div class="image-container" id="imgContainer">
-      <div class="image-wrapper" id="imgWrapper">
-        <img id="preview-img" alt="">
-        <div id="ann-overlay"
-             ondragover="event.preventDefault()"
-             ondrop="onOverlayDrop(event)"
-             onclick="onOverlayClick(event)">
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div class="h-field">
+      <span class="h-label">Date</span>
+      <input type="date" class="h-input" id="hDate">
+    </div>
+    <div class="h-field">
+      <span class="h-label">Clinic</span>
+      <select class="h-input" id="hClinic" onchange="onClinicChange()">
+        <option value="C1">Shalom (C1)</option>
+        <option value="C2">Coniferhome (C2)</option>
+      </select>
+    </div>
+    <div class="h-field">
+      <span class="h-label">Session</span>
+      <select class="h-input" id="hSession" onchange="onSessionChange()">
+        <option value="Mon AM">Mon AM</option>
+        <option value="Mon PM">Mon PM</option>
+        <option value="Tue">Tue</option>
+        <option value="Wed">Wed</option>
+        <option value="Thu PM">Thu PM</option>
+        <option value="Fri">Fri</option>
+        <option value="Sat AM">Sat AM</option>
+        <option value="Sat PM">Sat PM</option>
+      </select>
+    </div>
+    <div id="clinicBadge" class="clinic-badge clinic-c1">C1</div>
+  </div>
+
+  <!-- PALETTE -->
+  <div class="palette">
+    <div class="p-group">
+      <span class="p-label">Age</span>
+      <div class="chip" id="cp-lt18" draggable="true" title="Numpad 1"
+        onclick="setTool('lt18')" ondragstart="pd(event,'lt18')"
+        style="background:#dce8f8;border-color:#2563c9;color:#1a4fa8"><span class="kbadge">⌨1</span>&lt;18</div>
+      <div class="chip" id="cp-gte18" draggable="true" title="Numpad 2"
+        onclick="setTool('gte18')" ondragstart="pd(event,'gte18')"
+        style="background:#d6f0e5;border-color:#1a7a54;color:#155f42"><span class="kbadge">⌨2</span>≥18</div>
+    </div>
+    <div class="p-group">
+      <span class="p-label">Dx</span>
+      <div class="chip" id="cp-AnD" draggable="true" title="Numpad 4"
+        onclick="setTool('AnD')" ondragstart="pd(event,'AnD')"
+        style="background:#ece9ff;border-color:#6b63d0;color:#3b3490"><span class="kbadge">⌨4</span>An/D</div>
+      <div class="chip" id="cp-ADHD" draggable="true" title="Numpad 5"
+        onclick="setTool('ADHD')" ondragstart="pd(event,'ADHD')"
+        style="background:#fff0d6;border-color:#c97a10;color:#7a4a08"><span class="kbadge">⌨5</span>ADHD</div>
+      <div class="chip" id="cp-ASD" draggable="true" title="Numpad 6"
+        onclick="setTool('ASD')" ondragstart="pd(event,'ASD')"
+        style="background:#fde8e5;border-color:#c0392b;color:#7a1e17"><span class="kbadge">⌨6</span>ASD</div>
+      <div class="chip" id="cp-BAD" draggable="true" title="Numpad 7"
+        onclick="setTool('BAD')" ondragstart="pd(event,'BAD')"
+        style="background:#fce8f2;border-color:#b83d74;color:#7a2048"><span class="kbadge">⌨7</span>BAD</div>
+      <div class="chip" id="cp-Ax" draggable="true" title="Numpad 8"
+        onclick="setTool('Ax')" ondragstart="pd(event,'Ax')"
+        style="background:#e3f5d2;border-color:#5a8f1e;color:#2e5a0a"><span class="kbadge">⌨8</span>Ax</div>
+    </div>
+    <div class="p-group">
+      <span class="p-label">Case</span>
+      <div class="chip" id="cp-NC" draggable="true" title="Numpad 3"
+        onclick="setTool('NC')" ondragstart="pd(event,'NC')"
+        style="background:#fde8e5;border-color:#c0392b;color:#7a1e17"><span class="kbadge">⌨3</span>NC</div>
+    </div>
+    <div class="p-group">
+      <span class="p-label">FU Interval</span>
+      <div class="chip" id="cp-fu1" draggable="true" title="Numpad +"
+        onclick="setTool('fu1')" ondragstart="pd(event,'fu1')"
+        style="background:#e3f5d2;border-color:#5a8f1e;color:#2e5a0a"><span class="kbadge">⌨+</span>1-4w</div>
+      <div class="chip" id="cp-fu2" draggable="true" title="Numpad −"
+        onclick="setTool('fu2')" ondragstart="pd(event,'fu2')"
+        style="background:#d6f0e5;border-color:#1a7a54;color:#155f42"><span class="kbadge">⌨-</span>5-8w</div>
+      <div class="chip" id="cp-fu3" draggable="true" title="Numpad *"
+        onclick="setTool('fu3')" ondragstart="pd(event,'fu3')"
+        style="background:#fff0d6;border-color:#c97a10;color:#7a4a08"><span class="kbadge">⌨*</span>8-12w</div>
+      <div class="chip" id="cp-fu4" draggable="true" title="Numpad /"
+        onclick="setTool('fu4')" ondragstart="pd(event,'fu4')"
+        style="background:#fde8e5;border-color:#c0392b;color:#7a1e17"><span class="kbadge">⌨/</span>&gt;12w</div>
+      <div class="chip" id="cp-fu5" draggable="true" title="Numpad ="
+        onclick="setTool('fu5')" ondragstart="pd(event,'fu5')"
+        style="background:#edebe5;border-color:#7a7970;color:#3a3936"><span class="kbadge">⌨=</span>no FU</div>
+    </div>
+    <div class="p-group">
+      <span class="p-label">Other</span>
+      <div class="chip" id="cp-medref" draggable="true" title="Numpad 9"
+        onclick="setTool('medref')" ondragstart="pd(event,'medref')"
+        style="background:#e5e3dc;border-color:#6b6960;color:#2e2d2a"><span class="kbadge">⌨9</span>medref</div>
+    </div>
+  </div>
+
+  <!-- WORKSPACE -->
+  <div class="workspace">
+
+    <!-- IMAGE AREA -->
+    <div class="image-area" id="imgArea">
+      <div class="mode-bar" id="modeBar">
+        <span style="opacity:0.7;font-size:10px">Placing</span>
+        <span id="modeChip" class="mode-chip-preview"></span>
+        <span id="modeCount" style="font-family:var(--mono);font-size:11px;opacity:0.7"></span>
+        <span class="mode-esc" onclick="clearTool()">ESC ✕</span>
+      </div>
+
+      <div class="upload-zone" id="uploadZone" onclick="$('fileIn').click()">
+        <div class="upload-icon">🖼</div>
+        <div class="upload-title">Drop or paste patient list</div>
+        <div class="upload-sub">Screenshot, JPG, or PNG — paste as many as you need</div>
+        <div class="upload-hint"><kbd>⌘</kbd>+<kbd>V</kbd> to paste · or click to browse</div>
+      </div>
+      <input type="file" id="fileIn" accept="image/*" multiple style="display:none" onchange="onFileInput(event)">
+
+      <div class="image-container" id="imgContainer">
+        <div class="img-stack" id="imgStack">
+          <div class="add-more" id="addMore" onclick="$('fileIn').click()">
+            ＋ Paste another screenshot <kbd>⌘</kbd>+<kbd>V</kbd> — it is added below · or drop / click to browse
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- RIGHT PANEL -->
-  <div class="right-panel">
-    <div class="rp-scroll">
+    <!-- SIDEBAR -->
+    <aside class="right-panel">
+      <div class="rp-scroll">
+        <div class="rp-sec">
+          <div class="rp-head">Session Summary</div>
+          <div class="sum-kpi">
+            <div class="kpi">
+              <div class="kpi-lbl">Patients</div>
+              <div class="kpi-val blue" id="sTotal">0</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-lbl">New cases</div>
+              <div class="kpi-val red" id="sNC">0</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-lbl">Age &lt;18</div>
+              <div class="kpi-val" id="sLt18">0</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-lbl">Age ≥18</div>
+              <div class="kpi-val" id="sGte18">0</div>
+            </div>
+          </div>
 
-      <!-- FINANCIALS -->
-      <div class="rp-sec">
-        <div class="rp-head">Financials (HKD)</div>
-        <div class="fin-row">
-          <span class="fin-lbl">Total Trans</span>
-          <input type="number" class="fin-inp" id="fTrans" placeholder="0" oninput="calcNet()" min="0">
+          <div class="sum-sub-head">Diagnosis</div>
+          <div class="group">
+            <div class="sr"><span class="sr-dot" style="background:#6b63d0"></span><span class="sr-lbl">An/D</span><span class="sr-val" id="sAnD">0</span></div>
+            <div class="sr"><span class="sr-dot" style="background:#c97a10"></span><span class="sr-lbl">ADHD</span><span class="sr-val" id="sADHD">0</span></div>
+            <div class="sr"><span class="sr-dot" style="background:#c0392b"></span><span class="sr-lbl">ASD</span><span class="sr-val" id="sASD">0</span></div>
+            <div class="sr"><span class="sr-dot" style="background:#b83d74"></span><span class="sr-lbl">BAD</span><span class="sr-val" id="sBAD">0</span></div>
+            <div class="sr"><span class="sr-dot" style="background:#5a8f1e"></span><span class="sr-lbl">Ax</span><span class="sr-val" id="sAx">0</span></div>
+          </div>
+
+          <div class="sum-sub-head">Follow-up</div>
+          <div class="group">
+            <div class="sr"><span class="sr-dot" style="background:#e8e6df;border:1px solid #9b9a96"></span><span class="sr-lbl">FU (calc)</span><span class="sr-val" id="sFU">0</span></div>
+            <div class="sr"><span class="sr-dot" style="background:#5a8f1e"></span><span class="sr-lbl">1–4 weeks</span><span class="sr-val" id="sFu1">0</span></div>
+            <div class="sr"><span class="sr-dot" style="background:#1a7a54"></span><span class="sr-lbl">5–8 weeks</span><span class="sr-val" id="sFu2">0</span></div>
+            <div class="sr"><span class="sr-dot" style="background:#c97a10"></span><span class="sr-lbl">8–12 weeks</span><span class="sr-val" id="sFu3">0</span></div>
+            <div class="sr"><span class="sr-dot" style="background:#c0392b"></span><span class="sr-lbl">&gt;12 weeks</span><span class="sr-val" id="sFu4">0</span></div>
+            <div class="sr"><span class="sr-dot" style="background:#7a7970"></span><span class="sr-lbl">No FU arranged</span><span class="sr-val" id="sFu5">0</span></div>
+            <div class="sr"><span class="sr-dot" style="background:#6b6960"></span><span class="sr-lbl">Medref</span><span class="sr-val" id="sMedref">0</span></div>
+          </div>
         </div>
-        <div class="fin-row">
-          <span class="fin-lbl">Drug Cost</span>
-          <input type="number" class="fin-inp" id="fDrugCost" placeholder="0" oninput="calcNet()" min="0">
-        </div>
-        <div class="fin-row" id="drugSellRow">
-          <span class="fin-lbl">Drug Selling <span style="color:var(--text3);font-size:10px">(C1)</span></span>
-          <input type="number" class="fin-inp" id="fDrugSell" placeholder="optional" oninput="calcNet()" min="0">
-        </div>
-        <div class="tog-row" id="c2TogRow">
-          <span class="tog-lbl">+5% drug cost <span style="color:var(--text3);font-size:10px">(C2)</span></span>
-          <label class="tog-wrap">
-            <input type="checkbox" id="c2Tog" onchange="calcNet()">
-            <span class="tog-track"></span>
-          </label>
-        </div>
-        <div class="divider"></div>
-        <div class="net-row" id="netRow">
-          <span class="net-lbl">Net Income</span>
-          <span class="net-val" id="netVal">—</span>
-        </div>
+      </div><!-- /rp-scroll -->
+
+      <div class="export-bar">
+        <button class="btn btn-primary" onclick="exportCSV()">↓ CSV</button>
+        <button class="btn" onclick="copyText()" id="copyBtn" title="Copy counts as a tab-separated row">Copy</button>
+        <button class="btn" onclick="saveSession()" id="saveBtn" title="Save session (with images) to a file">Save</button>
+        <button class="btn" onclick="$('loadIn').click()" title="Open a saved session">Open</button>
+        <input type="file" id="loadIn" accept=".srx" style="display:none" onchange="loadSession(event)">
       </div>
+    </aside>
 
-      <!-- SUMMARY -->
-      <div class="rp-sec">
-        <div class="rp-head">Session Summary</div>
-        <div class="sum-kpi">
-          <div class="kpi">
-            <div class="kpi-lbl">Patients</div>
-            <div class="kpi-val blue" id="sTotal">0</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi-lbl">New cases</div>
-            <div class="kpi-val red" id="sNC">0</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi-lbl">Age &lt;18</div>
-            <div class="kpi-val" id="sLt18">0</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi-lbl">Age ≥18</div>
-            <div class="kpi-val" id="sGte18">0</div>
-          </div>
-        </div>
-
-        <div class="sum-sub-head">Diagnosis</div>
-        <div class="sum-rows">
-          <div class="sr"><span class="sr-dot" style="background:#6b63d0"></span><span class="sr-lbl">An/D</span><span class="sr-val" id="sAnD">0</span></div>
-          <div class="sr"><span class="sr-dot" style="background:#c97a10"></span><span class="sr-lbl">ADHD</span><span class="sr-val" id="sADHD">0</span></div>
-          <div class="sr"><span class="sr-dot" style="background:#c0392b"></span><span class="sr-lbl">ASD</span><span class="sr-val" id="sASD">0</span></div>
-          <div class="sr"><span class="sr-dot" style="background:#b83d74"></span><span class="sr-lbl">BAD</span><span class="sr-val" id="sBAD">0</span></div>
-          <div class="sr"><span class="sr-dot" style="background:#5a8f1e"></span><span class="sr-lbl">Ax</span><span class="sr-val" id="sAx">0</span></div>
-        </div>
-
-        <div class="sum-sub-head">Follow-up</div>
-        <div class="sum-rows">
-          <div class="sr"><span class="sr-dot" style="background:#e8e6df;border:1px solid #9b9a96"></span><span class="sr-lbl">FU (calc)</span><span class="sr-val" id="sFU">0</span></div>
-          <div class="sr"><span class="sr-dot" style="background:#5a8f1e"></span><span class="sr-lbl">1–4 weeks</span><span class="sr-val" id="sFu1">0</span></div>
-          <div class="sr"><span class="sr-dot" style="background:#1a7a54"></span><span class="sr-lbl">5–8 weeks</span><span class="sr-val" id="sFu2">0</span></div>
-          <div class="sr"><span class="sr-dot" style="background:#c97a10"></span><span class="sr-lbl">8–12 weeks</span><span class="sr-val" id="sFu3">0</span></div>
-          <div class="sr"><span class="sr-dot" style="background:#c0392b"></span><span class="sr-lbl">&gt;12 weeks</span><span class="sr-val" id="sFu4">0</span></div>
-          <div class="sr"><span class="sr-dot" style="background:#7a7970"></span><span class="sr-lbl">No FU arranged</span><span class="sr-val" id="sFu5">0</span></div>
-          <div class="sr"><span class="sr-dot" style="background:#6b6960"></span><span class="sr-lbl">Medref</span><span class="sr-val" id="sMedref">0</span></div>
-        </div>
-      </div>
-
-    </div><!-- /rp-scroll -->
-
-    <div class="export-bar">
-      <button class="btn btn-primary" onclick="exportCSV()">↓ CSV</button>
-      <button class="btn btn-secondary btn-sm" onclick="copyText()" id="copyBtn">Copy</button>
-      <button class="btn btn-secondary btn-sm" onclick="saveSession()" title="Save session to file">💾</button>
-      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('loadIn').click()" title="Load saved session">📂</button>
-      <input type="file" id="loadIn" accept=".srx" style="display:none" onchange="loadSession(event)">
-      <button class="btn btn-secondary btn-sm" onclick="resetImage()" title="Change image">🖼</button>
-    </div>
-  </div>
-
-</div><!-- /workspace -->
+  </div><!-- /workspace -->
+</div><!-- /window -->
+</div><!-- /desktop -->
 
 <script>
+const $ = id => document.getElementById(id);
+
 // ─── STATE ─────────────────────────────────────────────────
-let anns = [];       // {id, type, xPct, yPct}
-let uid = 1;
+let images = [];     // {id, src}
+let anns = [];       // {id, img, type, xPct, yPct}
+let uid = 1;         // annotation ids
+let imgUid = 1;      // image ids
 let activeTool = null;
-let dragOffXPct = 0, dragOffYPct = 0;
+let dragOffX = 0, dragOffY = 0;   // pixel offset of grab point from chip centre
 let toolPlaceCount = 0;
 
 // ─── CHIP CONFIG ───────────────────────────────────────────
@@ -782,50 +741,119 @@ const C = {
   medref: { label:'medref', bg:'#e5e3dc', bc:'#6b6960', tc:'#2e2d2a' },
 };
 
-// ─── IMAGE LOADING ─────────────────────────────────────────
-function loadImg(src) {
-  const img = document.getElementById('preview-img');
-  img.src = src;
-  img.onload = () => {
-    document.getElementById('uploadZone').style.display = 'none';
-    document.getElementById('imgContainer').classList.add('active');
-    document.getElementById('ann-overlay').style.height = img.offsetHeight + 'px';
-  };
-}
-function onFileInput(e) {
-  const f = e.target.files[0];
-  if (!f) return;
-  const r = new FileReader();
-  r.onload = ev => loadImg(ev.target.result);
-  r.readAsDataURL(f);
-}
-function onFileDrop(e) {
-  e.preventDefault();
-  document.getElementById('uploadZone').classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (!f || !f.type.startsWith('image/')) return;
-  const r = new FileReader();
-  r.onload = ev => loadImg(ev.target.result);
-  r.readAsDataURL(f);
-}
-function resetImage() {
-  document.getElementById('imgContainer').classList.remove('active');
-  document.getElementById('uploadZone').style.display = '';
-  document.getElementById('preview-img').src = '';
-  document.getElementById('fileIn').value = '';
+const clamp = (v, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v));
+
+// ─── IMAGES (any number, stacked top → bottom) ─────────────
+function readFile(f) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = ev => res(ev.target.result);
+    r.onerror = rej;
+    r.readAsDataURL(f);
+  });
 }
 
-// Paste
+async function addImageFiles(files) {
+  const list = [...files].filter(f => f.type.startsWith('image/'));
+  if (!list.length) return;
+  const srcs = await Promise.all(list.map(readFile));
+  const cards = srcs.map(src => addImage(src));
+  await Promise.all(cards.map(c => c.querySelector('img').decode().catch(() => {})));
+  scrollToCard(cards[0]);
+}
+
+function addImage(src, id) {
+  const im = { id: id != null ? id : imgUid++, src };
+  imgUid = Math.max(imgUid, im.id + 1);
+  images.push(im);
+  const card = buildCard(im);
+  $('addMore').before(card);          // always lands below the previous images
+  syncEmpty();
+  return card;
+}
+
+function buildCard(im) {
+  const card = document.createElement('div');
+  card.className = 'img-card';
+  card.dataset.id = im.id;
+
+  const img = document.createElement('img');
+  img.src = im.src;
+  img.alt = '';
+
+  const ov = document.createElement('div');
+  ov.className = 'ann-overlay';
+  ov.id = 'ov-' + im.id;
+  ov.addEventListener('dragover', e => e.preventDefault());
+  ov.addEventListener('drop', e => onOverlayDrop(e, im.id));
+  ov.addEventListener('click', e => onOverlayClick(e, im.id));
+
+  const rm = document.createElement('button');
+  rm.className = 'img-remove';
+  rm.title = 'Remove this image';
+  rm.textContent = '✕';
+  rm.onclick = e => { e.stopPropagation(); removeImage(im.id); };
+
+  card.append(img, ov, rm);
+  return card;
+}
+
+function removeImage(id) {
+  const n = anns.filter(a => a.img === id).length;
+  if (n && !confirm(`Remove this image and its ${n} annotation${n > 1 ? 's' : ''}?`)) return;
+  images = images.filter(i => i.id !== id);
+  anns = anns.filter(a => a.img !== id);
+  const card = document.querySelector(`.img-card[data-id="${id}"]`);
+  if (card) card.remove();
+  syncEmpty();
+  updateSummary();
+}
+
+function clearImages() {
+  images = [];
+  document.querySelectorAll('.img-card').forEach(c => c.remove());
+}
+
+function syncEmpty() {
+  const has = images.length > 0;
+  $('uploadZone').style.display = has ? 'none' : '';
+  $('imgContainer').classList.toggle('active', has);
+}
+
+function scrollToCard(card) {
+  if (!card) return;
+  $('imgContainer').scrollTo({ top: Math.max(0, card.offsetTop - 16), behavior: 'smooth' });
+}
+
+function onFileInput(e) {
+  addImageFiles(e.target.files);
+  e.target.value = '';
+}
+
+// Paste — every pasted image is appended below the previous ones
 document.addEventListener('paste', e => {
+  const files = [];
   for (const item of e.clipboardData?.items || []) {
     if (item.type.startsWith('image/')) {
-      const blob = item.getAsFile();
-      const r = new FileReader();
-      r.onload = ev => loadImg(ev.target.result);
-      r.readAsDataURL(blob);
-      break;
+      const f = item.getAsFile();
+      if (f) files.push(f);
     }
   }
+  if (files.length) { e.preventDefault(); addImageFiles(files); }
+});
+
+// Drop image files anywhere on the image area (chips are handled by the overlays)
+const imgArea = $('imgArea');
+const hasFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
+imgArea.addEventListener('dragover', e => {
+  if (hasFiles(e)) { e.preventDefault(); imgArea.classList.add('drag-over'); }
+});
+imgArea.addEventListener('dragleave', e => {
+  if (!imgArea.contains(e.relatedTarget)) imgArea.classList.remove('drag-over');
+});
+imgArea.addEventListener('drop', e => {
+  imgArea.classList.remove('drag-over');
+  if (hasFiles(e)) { e.preventDefault(); addImageFiles(e.dataTransfer.files); }
 });
 
 // ─── TOOL SELECTION ────────────────────────────────────────
@@ -834,42 +862,42 @@ function setTool(type) {
   activeTool = type;
   toolPlaceCount = 0;
   Object.keys(C).forEach(t => {
-    const el = document.getElementById('cp-'+t);
+    const el = $('cp-' + t);
     if (el) el.classList.toggle('active-tool', t === type);
   });
   const chip = C[type];
-  const modeChip = document.getElementById('modeChip');
+  const modeChip = $('modeChip');
   modeChip.textContent = chip.label;
   modeChip.style.background = chip.bg;
   modeChip.style.border = '1.5px solid ' + chip.bc;
   modeChip.style.color = chip.tc;
-  document.getElementById('modeCount').textContent = '';
-  document.getElementById('modeBar').classList.add('visible');
-  document.getElementById('ann-overlay').style.cursor = 'crosshair';
+  $('modeCount').textContent = '';
+  $('modeBar').classList.add('visible');
+  imgArea.classList.add('placing');
 }
 function clearTool() {
   activeTool = null;
   Object.keys(C).forEach(t => {
-    const el = document.getElementById('cp-'+t);
+    const el = $('cp-' + t);
     if (el) el.classList.remove('active-tool');
   });
-  document.getElementById('modeBar').classList.remove('visible');
-  document.getElementById('ann-overlay').style.cursor = 'default';
+  $('modeBar').classList.remove('visible');
+  imgArea.classList.remove('placing');
 }
+
 // ─── KEYBOARD SHORTCUTS ────────────────────────────────────
-const NUMPAD_MAP = {
-  'Numpad1':'lt18', 'Numpad2':'gte18', 'Numpad3':'NC',
-  'Numpad4':'AnD',  'Numpad5':'ADHD',  'Numpad6':'ASD',
-  'Numpad7':'BAD',  'Numpad8':'Ax',    'Numpad9':'medref',
-};
-const KEY_MAP = {
-  'Digit1':'fu1', 'Digit2':'fu2', 'Digit3':'fu3', 'Digit4':'fu4', 'Digit5':'fu5',
+const KEY_TOOLS = {
+  Numpad1: 'lt18',  Numpad2: 'gte18', Numpad3: 'NC',
+  Numpad4: 'AnD',   Numpad5: 'ADHD',  Numpad6: 'ASD',
+  Numpad7: 'BAD',   Numpad8: 'Ax',    Numpad9: 'medref',
+  // FU interval:  +  −  *  /  =
+  NumpadAdd: 'fu1', NumpadSubtract: 'fu2', NumpadMultiply: 'fu3',
+  NumpadDivide: 'fu4', NumpadEqual: 'fu5',
 };
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { clearTool(); return; }
-  // Ignore when typing in an input field
-  if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
-  const type = NUMPAD_MAP[e.code] || KEY_MAP[e.code];
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+  const type = KEY_TOOLS[e.code];
   if (type) { e.preventDefault(); setTool(type); }
 });
 
@@ -880,63 +908,56 @@ function pd(e, type) {
   e.dataTransfer.effectAllowed = 'copy';
 }
 
-// ─── OVERLAY INTERACTIONS ──────────────────────────────────
-function getOvPct(e) {
-  const ov = document.getElementById('ann-overlay');
+// ─── OVERLAY INTERACTIONS (one overlay per image) ──────────
+function getOvPct(e, ov) {
   const r = ov.getBoundingClientRect();
-  return {
-    x: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)),
-    y: Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))
-  };
+  return { x: clamp((e.clientX - r.left) / r.width), y: clamp((e.clientY - r.top) / r.height) };
 }
-function onOverlayDrop(e) {
+function onOverlayDrop(e, imgId) {
+  if (e.dataTransfer.files && e.dataTransfer.files.length) return;   // image files → area handler
   e.preventDefault();
+  const ov = $('ov-' + imgId);
   const src = e.dataTransfer.getData('src');
   if (src === 'palette') {
-    const type = e.dataTransfer.getData('type');
-    const {x, y} = getOvPct(e);
-    addAnn(type, x, y);
+    const { x, y } = getOvPct(e, ov);
+    addAnn(e.dataTransfer.getData('type'), imgId, x, y);
   } else if (src === 'ann') {
-    const id = parseInt(e.dataTransfer.getData('id'));
-    const {x, y} = getOvPct(e);
-    const a = anns.find(a => a.id === id);
+    const a = anns.find(a => a.id === parseInt(e.dataTransfer.getData('id')));
     if (a) {
-      a.xPct = Math.max(0.01, Math.min(0.99, x - dragOffXPct));
-      a.yPct = Math.max(0.01, Math.min(0.99, y - dragOffYPct));
-      render();
+      const r = ov.getBoundingClientRect();
+      a.img  = imgId;                     // chips can be moved onto another image
+      a.xPct = clamp((e.clientX - dragOffX - r.left) / r.width,  0.01, 0.99);
+      a.yPct = clamp((e.clientY - dragOffY - r.top)  / r.height, 0.01, 0.99);
+      renderAnns();
     }
   }
 }
-function onOverlayClick(e) {
+function onOverlayClick(e, imgId) {
   if (!activeTool) return;
   if (e.target.closest('.ann-chip')) return;
-  const {x, y} = getOvPct(e);
-  addAnn(activeTool, x, y);
+  const { x, y } = getOvPct(e, $('ov-' + imgId));
+  addAnn(activeTool, imgId, x, y);
   toolPlaceCount++;
-  document.getElementById('modeCount').textContent = '×' + toolPlaceCount;
+  $('modeCount').textContent = '×' + toolPlaceCount;
 }
 
 // ─── ANNOTATIONS ───────────────────────────────────────────
-function addAnn(type, x, y) {
-  anns.push({ id: uid++, type, xPct: x, yPct: y });
-  render();
+function addAnn(type, imgId, x, y) {
+  anns.push({ id: uid++, img: imgId, type, xPct: x, yPct: y });
+  renderAnns();
   updateSummary();
 }
 function delAnn(id) {
   anns = anns.filter(a => a.id !== id);
-  render();
+  renderAnns();
   updateSummary();
 }
-function render() {
-  const ov = document.getElementById('ann-overlay');
-  // Update overlay height to match image
-  const img = document.getElementById('preview-img');
-  if (img.naturalWidth) ov.style.height = img.offsetHeight + 'px';
-  
-  ov.innerHTML = '';
+function renderAnns() {
+  document.querySelectorAll('.ann-overlay').forEach(ov => { ov.innerHTML = ''; });
   anns.forEach(a => {
     const ch = C[a.type];
-    if (!ch) return;
+    const ov = $('ov-' + a.img);
+    if (!ch || !ov) return;
     const el = document.createElement('div');
     el.className = 'ann-chip';
     el.draggable = true;
@@ -945,26 +966,25 @@ function render() {
     el.style.background = ch.bg;
     el.style.borderColor = ch.bc;
     el.style.color = ch.tc;
-    
+
     const lbl = document.createElement('span');
     lbl.textContent = ch.label;
     el.appendChild(lbl);
-    
+
     const x = document.createElement('span');
     x.className = 'ann-x';
     x.textContent = '✕';
     x.onclick = ev => { ev.stopPropagation(); delAnn(a.id); };
     el.appendChild(x);
-    
+
     el.addEventListener('dragstart', ev => {
       ev.stopPropagation();
       ev.dataTransfer.setData('src', 'ann');
       ev.dataTransfer.setData('id', a.id);
       ev.dataTransfer.effectAllowed = 'move';
       const er = el.getBoundingClientRect();
-      const or = ov.getBoundingClientRect();
-      dragOffXPct = (ev.clientX - er.left - er.width/2) / or.width;
-      dragOffYPct = (ev.clientY - er.top - er.height/2) / or.height;
+      dragOffX = ev.clientX - (er.left + er.width / 2);
+      dragOffY = ev.clientY - (er.top + er.height / 2);
     });
     ov.appendChild(el);
   });
@@ -975,22 +995,22 @@ function updateSummary() {
   const cnt = {};
   Object.keys(C).forEach(t => cnt[t] = 0);
   anns.forEach(a => { if (cnt[a.type] !== undefined) cnt[a.type]++; });
-  
+
   const total = cnt.lt18 + cnt.gte18;
   const fu    = Math.max(0, total - cnt.NC);
-  
+
   const set = (id, v) => {
-    const el = document.getElementById(id);
+    const el = $(id);
     if (!el) return;
     el.textContent = v;
-    el.className = el.className.replace(' sr-zero','');
+    el.className = el.className.replace(' sr-zero', '');
     if (v === 0) el.className += ' sr-zero';
   };
-  
-  document.getElementById('sTotal').textContent = total;
-  document.getElementById('sNC').textContent = cnt.NC;
-  document.getElementById('sLt18').textContent = cnt.lt18;
-  document.getElementById('sGte18').textContent = cnt.gte18;
+
+  $('sTotal').textContent = total;
+  $('sNC').textContent = cnt.NC;
+  $('sLt18').textContent = cnt.lt18;
+  $('sGte18').textContent = cnt.gte18;
   set('sAnD', cnt.AnD);
   set('sADHD', cnt.ADHD);
   set('sASD', cnt.ASD);
@@ -1005,47 +1025,17 @@ function updateSummary() {
   set('sMedref', cnt.medref);
 }
 
-// ─── FINANCIALS ────────────────────────────────────────────
-function calcNet() {
-  const trans    = parseFloat(document.getElementById('fTrans').value) || 0;
-  const drugCost = parseFloat(document.getElementById('fDrugCost').value) || 0;
-  const drugSell = parseFloat(document.getElementById('fDrugSell').value) || 0;
-  const c2       = document.getElementById('c2Tog').checked;
-  
-  let net = null;
-  if (trans > 0) {
-    if (drugSell > 0) {
-      net = trans - drugSell; // C1 formula
-    } else if (drugCost > 0) {
-      net = trans - (c2 ? drugCost * 1.05 : drugCost);
-    }
-  }
-  
-  const netRow = document.getElementById('netRow');
-  const netEl = document.getElementById('netVal');
-  if (net !== null) {
-    netEl.textContent = '$' + Math.round(net).toLocaleString('en-HK');
-    netRow.className = 'net-row' + (net < 0 ? ' negative' : '');
-  } else {
-    netEl.textContent = '—';
-    netRow.className = 'net-row';
-  }
-}
+// ─── HEADER FIELDS ─────────────────────────────────────────
 function onClinicChange() {
-  const c2 = document.getElementById('hClinic').value === 'C2';
-  document.getElementById('c2Tog').checked = c2;
-  document.getElementById('c2TogRow').classList.toggle('tog-dimmed', !c2);
-  document.getElementById('drugSellRow').classList.toggle('tog-dimmed', c2);
-  const badge = document.getElementById('clinicBadge');
+  const c2 = $('hClinic').value === 'C2';
+  const badge = $('clinicBadge');
   badge.textContent = c2 ? 'C2' : 'C1';
   badge.className = 'clinic-badge ' + (c2 ? 'clinic-c2' : 'clinic-c1');
-  calcNet();
 }
 function onSessionChange() {
-  const s = document.getElementById('hSession').value;
-  const c1s = ['Mon PM','Wed','Fri','Sat PM'];
-  const clinic = c1s.includes(s) ? 'C1' : 'C2';
-  document.getElementById('hClinic').value = clinic;
+  const s = $('hSession').value;
+  const c1s = ['Mon PM', 'Wed', 'Fri', 'Sat PM'];
+  $('hClinic').value = c1s.includes(s) ? 'C1' : 'C2';
   onClinicChange();
 }
 
@@ -1053,25 +1043,24 @@ function onSessionChange() {
 function clearAll() {
   if (anns.length > 0 && !confirm('Clear all annotations?')) return;
   anns = []; uid = 1;
-  render(); updateSummary();
+  renderAnns(); updateSummary();
 }
+
+// ─── WINDOW ────────────────────────────────────────────────
+$('zoomBtn').addEventListener('click', () => $('desktop').classList.toggle('maximized'));
 
 // ─── INIT ──────────────────────────────────────────────────
 (function init() {
-  // Set today's date
   const d = new Date();
-  const pad = n => String(n).padStart(2,'0');
-  document.getElementById('hDate').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  
-  // Auto-set session from day of week
-  const dow = d.getDay();
-  const dayMap = {1:'Mon PM',2:'Tue',3:'Wed',4:'Thu PM',5:'Fri',6:'Sat AM'};
-  if (dayMap[dow]) {
-    document.getElementById('hSession').value = dayMap[dow];
+  const pad = n => String(n).padStart(2, '0');
+  $('hDate').value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  const dayMap = { 1: 'Mon PM', 2: 'Tue', 3: 'Wed', 4: 'Thu PM', 5: 'Fri', 6: 'Sat AM' };
+  if (dayMap[d.getDay()]) {
+    $('hSession').value = dayMap[d.getDay()];
     onSessionChange();
   }
   updateSummary();
-  calcNet();
 })();
 
 // ─── EXPORT ────────────────────────────────────────────────
@@ -1079,46 +1068,33 @@ function getState() {
   const cnt = {};
   Object.keys(C).forEach(t => cnt[t] = 0);
   anns.forEach(a => { if (cnt[a.type] !== undefined) cnt[a.type]++; });
-  const trans    = parseFloat(document.getElementById('fTrans').value) || '';
-  const drugCost = parseFloat(document.getElementById('fDrugCost').value) || '';
-  const drugSell = parseFloat(document.getElementById('fDrugSell').value) || '';
-  const c2       = document.getElementById('c2Tog').checked;
-  let net = '';
-  if (trans && drugSell) net = Math.round(trans - drugSell);
-  else if (trans && drugCost) net = Math.round(trans - (c2 ? drugCost*1.05 : drugCost));
-  const total = cnt.lt18 + cnt.gte18;
   return {
-    date:    document.getElementById('hDate').value,
-    session: document.getElementById('hSession').value,
-    clinic:  document.getElementById('hClinic').value,
-    trans, drugCost, drugSell, net,
-    lt18: cnt.lt18, gte18: cnt.gte18, total,
+    date:    $('hDate').value,
+    session: $('hSession').value,
+    clinic:  $('hClinic').value,
+    lt18: cnt.lt18, gte18: cnt.gte18,
     NC: cnt.NC, AnD: cnt.AnD, ADHD: cnt.ADHD, ASD: cnt.ASD, BAD: cnt.BAD, Ax: cnt.Ax,
     medref: cnt.medref,
-    fu1: cnt.fu1, fu2: cnt.fu2, fu3: cnt.fu3, fu4: cnt.fu4, fu5: cnt.fu5,
     fuInt: `${cnt.fu1};${cnt.fu2};${cnt.fu3};${cnt.fu4};${cnt.fu5}`,
   };
 }
 function exportCSV() {
   const d = getState();
-  const heads = ['Date','Session','Clinic','Total Trans','Drug Cost','Drug Selling','Net',
-    'age<18','age>18','NC','An/D','ADHD','ASD','BAD','Ax','medref','FU int'];
-  const vals = [d.date, d.session, d.clinic, d.trans, d.drugCost, d.drugSell, d.net,
-    d.lt18, d.gte18, d.NC, d.AnD, d.ADHD, d.ASD, d.BAD, d.Ax, d.medref, d.fuInt];
+  const heads = ['Date', 'Session', 'Clinic', 'age<18', 'age>18', 'NC', 'An/D', 'ADHD', 'ASD', 'BAD', 'Ax', 'medref', 'FU int'];
+  const vals = [d.date, d.session, d.clinic, d.lt18, d.gte18, d.NC, d.AnD, d.ADHD, d.ASD, d.BAD, d.Ax, d.medref, d.fuInt];
   const csv = heads.join(',') + '\n' + vals.map(v => `"${v}"`).join(',');
-  const blob = new Blob([csv], {type:'text/csv'});
+  const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
-  const a = Object.assign(document.createElement('a'), {href:url, download:`session_${d.date}_${d.session.replace(/\s/g,'_')}.csv`});
+  const a = Object.assign(document.createElement('a'), { href: url, download: `session_${d.date}_${d.session.replace(/\s/g, '_')}.csv` });
   a.click();
   URL.revokeObjectURL(url);
 }
 function copyText() {
   const d = getState();
   const row = [d.lt18, d.gte18, d.NC, d.AnD, d.ADHD, d.ASD, d.BAD, d.Ax, d.medref, d.fuInt].join('\t');
-  const btn = document.getElementById('copyBtn');
+  const btn = $('copyBtn');
   const done = () => { btn.textContent = '✓ Copied'; setTimeout(() => btn.textContent = 'Copy', 1800); };
   const fail = () => { btn.textContent = '✗ Failed'; setTimeout(() => btn.textContent = 'Copy', 1800); };
-  // Try modern clipboard API first, fall back to execCommand
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(row).then(done).catch(() => execCopy(row, done, fail));
   } else {
@@ -1134,55 +1110,44 @@ function execCopy(text, done, fail) {
   ta.select();
   try {
     document.execCommand('copy') ? done() : fail();
-  } catch(e) { fail(); }
+  } catch (e) { fail(); }
   document.body.removeChild(ta);
 }
 
 // ─── SAVE / LOAD ───────────────────────────────────────────
 async function saveSession() {
-  const img = document.getElementById('preview-img');
   const payload = {
-    version: 1,
-    date:    document.getElementById('hDate').value,
-    session: document.getElementById('hSession').value,
-    clinic:  document.getElementById('hClinic').value,
-    fTrans:    document.getElementById('fTrans').value,
-    fDrugCost: document.getElementById('fDrugCost').value,
-    fDrugSell: document.getElementById('fDrugSell').value,
-    c2Tog:   document.getElementById('c2Tog').checked,
-    anns,
-    uid,
-    imgSrc: img.src || '',
+    version: 2,
+    date:    $('hDate').value,
+    session: $('hSession').value,
+    clinic:  $('hClinic').value,
+    anns, uid,
+    images, imgUid,
   };
-  const json = JSON.stringify(payload);
-  const blob = new Blob([json], {type:'application/json'});
-  const d    = payload.date || 'session';
-  const s    = payload.session.replace(/\s/g,'_') || 'session';
-  const suggestedName = `${d}_${s}.srx`;
-  const saveBtn = document.querySelector('.export-bar .btn[onclick="saveSession()"]');
-  const confirm = () => { if(saveBtn){ saveBtn.textContent='✓'; setTimeout(()=>saveBtn.textContent='💾',1600); }};
+  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+  const suggestedName = `${payload.date || 'session'}_${payload.session.replace(/\s/g, '_') || 'session'}.srx`;
+  const saveBtn = $('saveBtn');
+  const flash = () => { saveBtn.textContent = '✓ Saved'; setTimeout(() => saveBtn.textContent = 'Save', 1600); };
 
-  // Use File System Access API if available — shows native OS save dialog with replace prompt
   if (window.showSaveFilePicker) {
     try {
       const fh = await window.showSaveFilePicker({
         suggestedName,
-        types: [{ description: 'Session file', accept: {'application/json': ['.srx']} }],
+        types: [{ description: 'Session file', accept: { 'application/json': ['.srx'] } }],
       });
       const writable = await fh.createWritable();
       await writable.write(blob);
       await writable.close();
-      confirm();
+      flash();
     } catch (err) {
       if (err.name !== 'AbortError') alert('Save failed: ' + err.message);
     }
   } else {
-    // Fallback: standard download (browser handles replacement silently or auto-renames)
     const url = URL.createObjectURL(blob);
-    const a   = Object.assign(document.createElement('a'), { href: url, download: suggestedName });
+    const a = Object.assign(document.createElement('a'), { href: url, download: suggestedName });
     a.click();
     URL.revokeObjectURL(url);
-    confirm();
+    flash();
   }
 }
 
@@ -1195,53 +1160,37 @@ function loadSession(e) {
       const p = JSON.parse(ev.target.result);
       if (!p.version) throw new Error('Invalid file');
 
-      // Restore header fields
-      if (p.date)    document.getElementById('hDate').value    = p.date;
-      if (p.session) document.getElementById('hSession').value = p.session;
-      if (p.clinic)  document.getElementById('hClinic').value  = p.clinic;
+      if (p.date)    $('hDate').value    = p.date;
+      if (p.session) $('hSession').value = p.session;
+      if (p.clinic)  $('hClinic').value  = p.clinic;
       onClinicChange();
 
-      // Restore financials
-      document.getElementById('fTrans').value    = p.fTrans    || '';
-      document.getElementById('fDrugCost').value = p.fDrugCost || '';
-      document.getElementById('fDrugSell').value = p.fDrugSell || '';
-      document.getElementById('c2Tog').checked   = !!p.c2Tog;
-      calcNet();
+      // images: v2 has a list, v1 had a single imgSrc
+      clearImages();
+      imgUid = 1;
+      let imgs = [];
+      if (Array.isArray(p.images)) imgs = p.images;
+      else if (p.imgSrc) imgs = [{ id: 1, src: p.imgSrc }];
+      imgs.filter(i => i && typeof i.src === 'string' && i.src.startsWith('data:image/'))
+          .forEach(i => addImage(i.src, i.id));
 
-      // Restore annotations
-      anns = p.anns || [];
-      uid  = p.uid  || (anns.length + 1);
+      const firstId = images.length ? images[0].id : null;
+      anns = (p.anns || []).map(a => ({
+        ...a,
+        img: images.some(i => i.id === a.img) ? a.img : firstId,
+      }));
+      uid = Math.max(p.uid || 0, 0, ...anns.map(a => a.id || 0)) + 1;
 
-      // Restore image
-      if (p.imgSrc && p.imgSrc.startsWith('data:')) {
-        const img = document.getElementById('preview-img');
-        img.src = p.imgSrc;
-        img.onload = () => {
-          document.getElementById('uploadZone').style.display = 'none';
-          document.getElementById('imgContainer').classList.add('active');
-          document.getElementById('ann-overlay').style.height = img.offsetHeight + 'px';
-          render();
-          updateSummary();
-        };
-      } else {
-        render();
-        updateSummary();
-      }
-    } catch(err) {
+      syncEmpty();
+      renderAnns();
+      updateSummary();
+    } catch (err) {
       alert('Could not load file: ' + err.message);
     }
-    // Reset input so same file can be reloaded
     e.target.value = '';
   };
   reader.readAsText(file);
 }
-
-
-window.addEventListener('resize', () => {
-  const img = document.getElementById('preview-img');
-  const ov = document.getElementById('ann-overlay');
-  if (img.naturalWidth) ov.style.height = img.offsetHeight + 'px';
-});
 </script>
 </body>
 </html>
